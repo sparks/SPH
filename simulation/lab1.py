@@ -54,7 +54,7 @@ def Q4():
 
 	resp = fft(taps, 1000)
 
-	print taps
+	print taps, len(taps)
 
 	title("Parks-McClellan/Remez Exchange, FIR Bandpass filter, Initial Order Estimate")
 	xlabel("z")

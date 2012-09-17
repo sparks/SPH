@@ -16,7 +16,7 @@ LINKFLAGS = -lm
 ##Files/Dirs##
 
 NAME       = main
-SOURCES    = $(wildcard *.c) $(wildcard *.cpp)
+SOURCES    = $(wildcard *.c) $(wildcard *.cpp) $(wildcard *.h)
 OBJECTS    = $(patsubst %.cpp, %.o, $(SOURCES))
 
 all: $(NAME)

@@ -27,6 +27,7 @@ void process_block(short *in, short *out, int size);
 short process_sample(short x);
 
 int main() {
+
 	FILE *infile, *outfile;
 	int datacount;
 	
@@ -74,6 +75,8 @@ void process_block(short *in, short *out, int size) {
 
 /* You could also have a function working on a sample by sample basis */
 short process_sample(short x) {
+	in_buf_ptr = (in_buf_ptr+1)%FIRLEN;
+
 	in_buf[in_buf_ptr] = x;
 
 	float result = 0;
@@ -81,8 +84,6 @@ short process_sample(short x) {
 		//MAC here
 		result += remezFIR[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
 	}
-
-	in_buf_ptr += (in_buf_ptr+1)%FIRLEN;
 
 	return (short)result;
 }
