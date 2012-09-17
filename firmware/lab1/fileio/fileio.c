@@ -86,7 +86,7 @@ short process_sample(short x) {
 
 	for(i = 0;i < FIRLEN;i++) {
 		//MAC here
-		result += remezFIR[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
+		result += kaiserBP53[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
 	}
 
 	return (short)result;
