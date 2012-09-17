@@ -64,6 +64,8 @@ int main() {
     fclose(infile);
     fclose(outfile);
 
+	// exit to stop program when finished (otherwise keeps going forever)
+	exit();	// comment out if not compiling in Code Composer
 }
 
 /* Here is the definition of the block processing function */
