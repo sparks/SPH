@@ -8,6 +8,14 @@ from scipy.signal import *
 def db(val):
 	return 20*log10(val)
 
+def printArray(val):
+	string = "{"
+	for v in val:
+		string = string+str(v)+", "
+	string = string[0:-2]
+	string = string+"}"
+	print string
+
 #Draw the specifications for a low pass
 def draw_lp_specs(freqs, wp, ws, gpass_max, gpass_min, gstop):
 	plot(freqs, [gpass_max for i in range(size(freqs))])
@@ -34,9 +42,10 @@ def Q3():
 	print "And the delay of the filter is", kaiser_param[0]
 
 	taps = firwin(kaiser_param[0]+1, [0.0625, 0.8375], window=('kaiser', kaiser_param[1]), pass_zero=False)
-	print taps
+	printArray(taps)
 
 	resp = fft(taps, 1000)
+	print len(taps)
 
 	title("Kaiser Window, FIR Bandpass filter")
 	xlabel("z")
@@ -50,11 +59,11 @@ def Q4():
 	M = 64 #can go -6
 	print "Inital Parks-McClellan M estimate", M
 
-	taps = remez(int(M), [0, 0.050000000000000003, 0.074999999999999997, 0.82499999999999996, 0.84999999999999998, 1], [0, 1, 1], [1/0.01, 1/0.05, 1/0.01], 2, 'hilbert')
+	taps = remez(int(M), [0, 0.050000000000000003, 0.074999999999999997, 0.82499999999999996, 0.84999999999999998, 1], [0, 1, 0], [1, 1, 1], 2, 'hilbert')
 
 	resp = fft(taps, 1000)
-
-	print taps, len(taps)
+	
+	printArray(taps)	
 
 	title("Parks-McClellan/Remez Exchange, FIR Bandpass filter, Initial Order Estimate")
 	xlabel("z")
@@ -80,7 +89,5 @@ def Q4():
 
 	# print "Thus the inital estimate was quite close to the correct value"
 
-
-# Q2()
 # Q3()
 Q4()

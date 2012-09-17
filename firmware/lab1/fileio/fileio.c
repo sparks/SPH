@@ -27,7 +27,6 @@ void process_block(short *in, short *out, int size);
 short process_sample(short x);
 
 int main() {
-
 	FILE *infile, *outfile;
 	int datacount;
 	
@@ -82,7 +81,7 @@ short process_sample(short x) {
 	float result = 0;
 	for(int i = 0;i < FIRLEN;i++) {
 		//MAC here
-		result += remezFIR[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
+		result += kaiserBP53[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
 	}
 
 	return (short)result;

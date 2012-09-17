@@ -20,11 +20,13 @@ DSK6713_AIC23_Config config = {
 
 DSK6713_AIC23_CodecHandle hCodec;
 
-main() {
+int in_buf_ptr;
+float in_buf[FIRLEN];
+
+int main() {
 
 	/* These variables are used to access the hardware */
 	Uint32 x1,x2;
-	Int16 y1;
 
 	/* Working variables */
 
@@ -46,10 +48,9 @@ main() {
 	    y = process_sample(x);
 	    /* This next statement is not really necessary, and
 	    * only to make the conversion from float to int explicit.       */
-	    y1 = y;
 	    // write the sample to both channels
-	    while(!DSK6713_AIC23_write(hCodec, y1));
-	    while(!DSK6713_AIC23_write(hCodec, y1));
+	    while(!DSK6713_AIC23_write(hCodec, (Int16)y1));
+	    while(!DSK6713_AIC23_write(hCodec, (Int16)y1));
 	};
 
 	/* The program will never exit this loop */
@@ -60,4 +61,16 @@ main() {
 }
 
 float process_sample(float x) {
+	/* You could also have a function working on a sample by sample basis */
+	in_buf_ptr = (in_buf_ptr+1)%FIRLEN;
+
+	in_buf[in_buf_ptr] = x;
+
+	float result = 0;
+	for(int i = 0;i < FIRLEN;i++) {
+		//MAC here
+		result += kaiserBP53[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
+	}
+
+	return result;
 }
