@@ -27,11 +27,13 @@ void process_block(short *in, short *out, int size);
 short process_sample(short x);
 
 int main() {
+	int i;
+
 	FILE *infile, *outfile;
 	int datacount;
 	
 	in_buf_ptr = 0;
-	for(int i = 0;i < FIRLEN;i++) in_buf[i] = 0;
+	for(i = 0;i < FIRLEN;i++) in_buf[i] = 0;
 
     /* Open the input file and quit if fail */
 	infile = fopen(INPUT_FILENAME,"rb");
@@ -66,7 +68,8 @@ int main() {
 
 /* Here is the definition of the block processing function */
 void process_block(short *in, short *out, int size) {
-	for(int i = 0;i < size;i++) {
+	int i;
+	for(i = 0;i < size;i++) {
 		*out = process_sample(*in);
 		out++; in++;
 	}
@@ -74,12 +77,14 @@ void process_block(short *in, short *out, int size) {
 
 /* You could also have a function working on a sample by sample basis */
 short process_sample(short x) {
+	int i;
+	float result = 0;
+
 	in_buf_ptr = (in_buf_ptr+1)%FIRLEN;
 
 	in_buf[in_buf_ptr] = x;
 
-	float result = 0;
-	for(int i = 0;i < FIRLEN;i++) {
+	for(i = 0;i < FIRLEN;i++) {
 		//MAC here
 		result += kaiserBP53[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
 	}
