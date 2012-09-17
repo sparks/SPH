@@ -47,12 +47,14 @@ def Q3():
 	show()
 
 def Q4():
-	M = 100 #can go -6
+	M = 64 #can go -6
 	print "Inital Parks-McClellan M estimate", M
 
-	taps = remez(int(M), [0, 0.050000000000000003, 0.074999999999999997, 0.82499999999999996, 0.84999999999999998, 1], [0, 1, 1], [1/0.05, 1/0.05, 1/0.05], 2, 'hilbert')
+	taps = remez(int(M), [0, 0.050000000000000003, 0.074999999999999997, 0.82499999999999996, 0.84999999999999998, 1], [0, 1, 1], [1/0.01, 1/0.05, 1/0.01], 2, 'hilbert')
 
 	resp = fft(taps, 1000)
+
+	print taps
 
 	title("Parks-McClellan/Remez Exchange, FIR Bandpass filter, Initial Order Estimate")
 	xlabel("z")

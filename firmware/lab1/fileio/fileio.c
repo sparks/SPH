@@ -16,18 +16,23 @@
 * Declare two global arrays in the far section to
 * process the data.
 */
-short DATA_IN[BLOCKSIZE];
-short DATA_OUT[BLOCKSIZE];
+short DATA_IN[BLOCKSIZE]; //was far short
+short DATA_OUT[BLOCKSIZE]; //was far short
+
+int in_buf_ptr;
+short in_buf[FIRLEN];
 
 /* declare the block processing function */
 void process_block(short *in, short *out, int size);
-float process_sample(float x);
+short process_sample(short x);
 
 int main() {
-
 	FILE *infile, *outfile;
 	int datacount;
 	
+	in_buf_ptr = 0;
+	for(int i = 0;i < FIRLEN;i++) in_buf[i] = 0;
+
     /* Open the input file and quit if fail */
 	infile = fopen(INPUT_FILENAME,"rb");
 	if (!infile) {
@@ -62,13 +67,22 @@ int main() {
 /* Here is the definition of the block processing function */
 void process_block(short *in, short *out, int size) {
 	for(int i = 0;i < size;i++) {
-		*out = *in;
-		out++;
-		in++;
+		*out = process_sample(*in);
+		out++; in++;
 	}
 }
 
 /* You could also have a function working on a sample by sample basis */
-float process_sample(float x) {
-	return 0.0;
+short process_sample(short x) {
+	in_buf[in_buf_ptr] = x;
+
+	float result = 0;
+	for(int i = 0;i < FIRLEN;i++) {
+		//MAC here
+		result += remezFIR[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
+	}
+
+	in_buf_ptr += (in_buf_ptr+1)%FIRLEN;
+
+	return (short)result;
 }
