@@ -1,5 +1,6 @@
 #include <dsk6713.h>
 #include <dsk6713_aic23.h>
+#include "realtime.h"
 
 /* The declaration of your sample processing function */
 float process_sample(float x);
