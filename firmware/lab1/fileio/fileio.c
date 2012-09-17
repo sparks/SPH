@@ -16,8 +16,8 @@
 * Declare two global arrays in the far section to
 * process the data.
 */
-short DATA_IN[BLOCKSIZE]; //was far short
-short DATA_OUT[BLOCKSIZE]; //was far short
+far short DATA_IN[BLOCKSIZE]; //was far short
+far short DATA_OUT[BLOCKSIZE]; //was far short
 
 int in_buf_ptr;
 short in_buf[FIRLEN];
