@@ -49,8 +49,8 @@ int main() {
 	    /* This next statement is not really necessary, and
 	    * only to make the conversion from float to int explicit.       */
 	    // write the sample to both channels
-	    while(!DSK6713_AIC23_write(hCodec, (Int16)y1));
-	    while(!DSK6713_AIC23_write(hCodec, (Int16)y1));
+	    while(!DSK6713_AIC23_write(hCodec, (Int16)y));
+	    while(!DSK6713_AIC23_write(hCodec, (Int16)y));
 	};
 
 	/* The program will never exit this loop */
@@ -61,13 +61,14 @@ int main() {
 }
 
 float process_sample(float x) {
+	int i;
+	float result = 0;
 	/* You could also have a function working on a sample by sample basis */
 	in_buf_ptr = (in_buf_ptr+1)%FIRLEN;
 
 	in_buf[in_buf_ptr] = x;
 
-	float result = 0;
-	for(int i = 0;i < FIRLEN;i++) {
+	for(i = 0;i < FIRLEN;i++) {
 		//MAC here
 		result += kaiserBP53[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
 	}
