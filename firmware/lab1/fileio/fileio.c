@@ -77,17 +77,18 @@ void process_block(short *in, short *out, int size) {
 	}
 }
 
-/* You could also have a function working on a sample by sample basis */
+/* Process sampling function, outputs one filtered sample at a time */
 short process_sample(short x) {
 	int i;
 	float result = 0;
 
+	// (secondary) fir buffer to allow for seperate blocks
 	in_buf_ptr = (in_buf_ptr+1)%FIRLEN;
 
 	in_buf[in_buf_ptr] = x;
 
 	for(i = 0;i < FIRLEN;i++) {
-		//MAC here
+		// applys the filter coeficients to the in samples
 		result += kaiserBP53[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
 	}
 
