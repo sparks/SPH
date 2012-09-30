@@ -30,4 +30,4 @@ fill_between(freq, 0, output_p_p, facecolor='green')
 #plot(freq, output_rms)
 #xlim([10, 200])
 
-how()
+show()
