@@ -7,14 +7,10 @@ input_rms = []
 output_p_p = []
 output_rms = []
 
-first = True
-
-with open('lab1-freq-sweep.csv', 'rb') as file:
+with open('FIRTransferFunction.csv', 'rb') as file:
     reader = csv.reader(file)
     for row in reader:
-        if first:
-            first = False
-        else:
+        if row[0] != "#":
             freq.append(float(row[0]))
             input_p_p.append(float(row[1]))
             input_rms.append(float(row[2]))
