@@ -58,7 +58,7 @@ int main() {
 	    y = process_sample(x);
 	    /* This next statement is not really necessary, andrremezFIRBP64ly to make the conversion from float to int explicit.       */
 	    // write the sample to both channels
-		casted = ((Int16)y) & 0xFFFF;
+	    casted = ((Int16)y) & 0xFFFF;
 	    while(!DSK6713_AIC23_write(hCodec, casted));
 	    while(!DSK6713_AIC23_write(hCodec, casted));
 	};
@@ -82,7 +82,7 @@ Int16 process_sample(Int16 x) {
 
 	for(i = 0;i < FIRLEN;i++) {
 		// applys the filter coeficients to the in samples
-		result += remezFIRBP64[i]*(float)in_buf[(in_buf_index+i)%FIRLEN];
+		result += kaiserBP53[i]*(float)in_buf[(in_buf_index+i)%FIRLEN];
 	}
 
 	return (Int16)result;
