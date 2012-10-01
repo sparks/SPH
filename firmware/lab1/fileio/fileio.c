@@ -1,5 +1,10 @@
-#include <stdio.h>
+// ECSE 436 - Signal Processing Hardware
+// Lab 1
+// Salenikovich, Stepan - 260326129
+// Smith, Severin - 260349085
+
 #include <errno.h>
+#include <stdio.h>
 #include "fileio.h"
 
 /*
@@ -19,7 +24,7 @@
 far short DATA_IN[BLOCKSIZE]; //was far short
 far short DATA_OUT[BLOCKSIZE]; //was far short
 
-int in_buf_ptr;
+int in_buf_index;
 short in_buf[FIRLEN];
 
 /* declare the block processing function */
@@ -32,7 +37,7 @@ int main() {
 	FILE *infile, *outfile;
 	int datacount;
 	
-	in_buf_ptr = 0;
+	in_buf_index = 0;
 	for(i = 0;i < FIRLEN;i++) in_buf[i] = 0;
 
     /* Open the input file and quit if fail */
@@ -82,14 +87,15 @@ short process_sample(short x) {
 	int i;
 	float result = 0;
 
-	// (secondary) fir buffer to allow for seperate blocks
-	in_buf_ptr = (in_buf_ptr+1)%FIRLEN;
+	// fir buffer stores the previous FIRLEN (number of fir coefficients)
+        // samples
+	in_buf_index = (in_buf_index+1)%FIRLEN;
 
-	in_buf[in_buf_ptr] = x;
+	in_buf[in_buf_index] = x;
 
 	for(i = 0;i < FIRLEN;i++) {
 		// applys the filter coeficients to the in samples
-		result += kaiserBP53[i]*in_buf[(in_buf_ptr+i)%FIRLEN];
+		result += kaiserBP53[i]*in_buf[(in_buf_index+i)%FIRLEN];
 	}
 
 	return (short)result;
