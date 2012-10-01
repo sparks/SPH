@@ -21,7 +21,7 @@ def kaiserplot():
 
 	resp = fft(taps, 1000)
 
-	title("Kaiser Window, FIR Bandpass filter")
+	title("Kaiser Window, FIR Band-pass Filter. "+str(kaiser_param[0]+1)+"th Order")
 	xlabel("Frequency (Hz)")
 	ylabel("Gain (dB)")
 	ylim([-60, 5])
@@ -35,12 +35,40 @@ def remezplot(M, bhp):
 
 	resp = fft(taps, 1000)
 
-	title("Parks-McClellan, FIR Bandpass filter")
+	if bhp == 1:
+		title("Parks-McClellan, FIR High-pass Filter, "+str(M)+"th Order")
+	else:
+		title("Parks-McClellan, FIR Band-pass Filter, "+str(M)+"th Order")
 	xlabel("Frequency (Hz)")
 	ylabel("Gain (dB)")
 	ylim([-60, 5])
 	plot([8000.0/size(resp)*i for i in range(size(resp))], db(abs(array(resp))), linewidth=2.5)
 	grid()
+
+def secondorder():
+	n = 1000
+	ws = [2*pi/n*i for i in range(n)]
+	val = [(1-e**(1j*2*pi*60/8000)*e**(1j*w))*(1-e**(-1j*2*pi*60/8000)*e**(1j*w)) for w in ws]
+	val = array(val)
+
+	subplot(1, 2, 1)
+	title("Second Order, FIR Notch filter")
+	xlabel("Frequency (Hz)")
+	ylabel("Gain (dB)")
+	# ylim([-60, 5])
+	grid()
+	plot([8000/n*i for i in range(n)], db(abs(val)), linewidth=2.5)
+
+	subplot(1, 2, 2)
+	title("Second Order, FIR Notch filter")
+	xlabel("Frequency (Hz)")
+	ylabel("Gain (dB)")
+	# ylim([-60, 5])
+	grid()
+	plot([8000/n*i for i in range(n)], db(abs(val)), linewidth=2.5)
+
+	show()
+
 
 subplot(2, 2, 1)
 kaiserplot()
@@ -50,5 +78,7 @@ subplot(2, 2, 3)
 remezplot(64, 0)
 subplot(2, 2, 4)
 remezplot(64, 1)
+
+# secondorder()
 
 show()

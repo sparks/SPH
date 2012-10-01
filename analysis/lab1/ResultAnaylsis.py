@@ -13,7 +13,7 @@ output_p_p = []
 output_rms = []
 
 def kaiserplot():
-	kaiser_param = kaiserord(db(0.01), 0.05)
+	kaiser_param = kaiserord(db(0.05), 0.05)
 
 	taps = firwin(kaiser_param[0]+1, [0.0625, 0.8375], window=('kaiser', kaiser_param[1]), pass_zero=False)
 	# printArray(taps)
@@ -39,11 +39,12 @@ output_p_p = array(output_p_p)
 output_rms = array(output_rms)
 
 plot(freq, db(output_rms/input_rms), label="Experiment", linewidth=2.5)
+# plot(freq, db(output_p_p/input_p_p), label="Experiment P-P", linewidth=2.5)
 # fill_between(freq, 0, output_p_p, facecolor='green')
 
 kaiserplot()
 
-title("Kaiser Window, FIR Band-Pass Filter")
+title("Kaiser Window, FIR Band-pass Filter")
 legend()
 xlabel("Frequency (Hz)")
 ylabel("Gain (dB)")
