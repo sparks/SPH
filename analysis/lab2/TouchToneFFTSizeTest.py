@@ -2,7 +2,7 @@ from pylab import *
 import scipy.io.wavfile as wave
 import time
 
-factor = 1
+factor = 8
 n = 1024/factor
 
 tt_audio = wave.read("touchtones.wav")
@@ -133,8 +133,8 @@ def animateWithTones():
 		ax.autoscale_view()
 		draw()
 
-		time.sleep(0.1)
+		# time.sleep(0.1)
 
-	print stack
+	print stack #Expect ['', '*', '0', '1', '5', '1', '4', '3', '9', '8', '2', '7', '2', '6', '2', '5', '1', '0', '6', '3', '#']
 
 animateWithTones()
