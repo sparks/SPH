@@ -12,9 +12,6 @@ for i in range(size(tt_audio[1])/n-1):
 	block = tt_audio[1][i*n:(i+1)*n]
 	blocks.append(block)
 
-def alias(val):
-	return int(val/(8000.0/n))*8000.0/n 
-
 valid_freq = [697, 770, 852, 941, 1209, 1336, 1477]
 
 def snap(val):
@@ -121,7 +118,6 @@ def animateWithTones():
 			tt.set_text(tones[tuple_key])
 			if stack[-1] != tones[tuple_key]:
 				stack.append(tones[tuple_key])
-
 		else:
 			tt.set_text("(%1.1f, %1.1f)" % (maxes[0][0]*8000/n, maxes[0][1]*8000/n))
 
@@ -136,5 +132,14 @@ def animateWithTones():
 		# time.sleep(0.1)
 
 	print stack #Expect ['', '*', '0', '1', '5', '1', '4', '3', '9', '8', '2', '7', '2', '6', '2', '5', '1', '0', '6', '3', '#']
+	expected = ['', '*', '0', '1', '5', '1', '4', '3', '9', '8', '2', '7', '2', '6', '2', '5', '1', '0', '6', '3', '#']
+	if expected == stack:
+		print "Matches Expected Results"
 
+def slice(block_num):
+	ft = abs(fft(blocks[block_num]))
+	plot([i*8000.0/n for i in range(n)], ft, 'o')
+	show()
+
+# slice(100)
 animateWithTones()
