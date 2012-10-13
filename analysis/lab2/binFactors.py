@@ -29,7 +29,7 @@ for i in range(len(freqs)):
             bins[low_bin], high_bin, bins[high_bin], factor_low, factor_high)
 
 for i in range(len(freqs)):
-    second_harmonics.append(freqs[i]*3)
+    second_harmonics.append(freqs[i]*2)
 
 print "\n respective second harmonics:"
 
