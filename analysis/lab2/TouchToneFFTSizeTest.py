@@ -55,7 +55,7 @@ def animateFFT():
 		ax.autoscale_view()
 		draw()
 
-def animateWithTones():
+def animateWithTonesMax():
 	stack = [""]
 	ion()
 	ax = gca()
@@ -141,5 +141,55 @@ def slice(block_num):
 	plot([i*8000.0/n for i in range(n)], ft, 'o')
 	show()
 
+def animateWithTonesRMS():
+	stack = [""]
+
+	ion()
+	ax = gca()
+
+	ft = abs(fft(blocks[0]))
+
+	rms_avg = 0
+
+	for i, val in enumerate(ft):
+		if i > n/2:
+			break
+
+		rms_avg += val
+
+	rms_avg /= n/2
+	rms_avg *= 8
+
+	line, = plot(ft)
+	rms_line, = plot([rms_avg for i in range(n)])
+
+	for i in range(size(tt_audio[1])/n-1):
+		ft = abs(fft(blocks[i]))
+
+		rms_avg = 0
+
+		for i, val in enumerate(ft):
+			if i > n/2:
+				break
+
+			rms_avg += val
+
+		rms_avg /= n/2
+		rms_avg *= 8
+
+		line.set_ydata(ft)
+		rms_line.set_ydata([rms_avg for i in range(n)])
+
+		ax.relim()
+		ax.autoscale_view()
+		draw()
+
+		# time.sleep(0.1)
+
+	print stack #Expect ['', '*', '0', '1', '5', '1', '4', '3', '9', '8', '2', '7', '2', '6', '2', '5', '1', '0', '6', '3', '#']
+	expected = ['', '*', '0', '1', '5', '1', '4', '3', '9', '8', '2', '7', '2', '6', '2', '5', '1', '0', '6', '3', '#']
+	if expected == stack:
+		print "Matches Expected Results"
+
 # slice(100)
-animateWithTones()
+animateWithTonesRMS()
