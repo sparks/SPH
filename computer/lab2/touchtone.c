@@ -45,11 +45,17 @@ short DATA_OUT[BLOCKSIZE];
 short buffer[BLOCKSIZE];
 int buffer_index;
 
-int detected_tones[22] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-int tone_index = -1;
-int last_tone;
+#define TONE_BUF_LEN 23
+int detected_tones[TONE_BUF_LEN] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+int prev_tone_index, tone_index;
 
-int samplecount = 0;
+int pulse_up = 8;
+int pulse_len = 800;
+
+int pulse_state = -1, pulse_tone_index;
+int pulse_sample_index, pulse_tone_count, pulse_tone_count_max;
+
+int sample_count = 0;
 int tone_len_count = 0;
 
 //Controllable detection params
@@ -102,7 +108,66 @@ void process_block(short *in, int size) {
 	int i;
 	for(i = 0;i < size;i++) {
 		//Equivalent to main loop
-		process_sample(in[i]);
+		process_sample(in[i]);	
+	}
+}
+
+short generate_pulse_sample() {
+	if(pulse_state != 1) {
+		if(pulse_tone_index == tone_index) {
+			return 0;
+		} else {
+			//We will read a tone
+			if(pulse_state == -1) { //Look for the first * character
+				if(detected_tones[pulse_tone_index] != 10) {
+					return 0;
+				} else {
+					pulse_state = 0;
+				}
+			} else if(detected_tones[pulse_tone_index] == 11) { //Look for the termination character
+				//Write to file
+				pulse_state = -1;
+			} else if(pulse_state == 0) { //Waiting for another tone
+				if(detected_tones[pulse_tone_index] == 10) { //Change rate on next command
+					pulse_state = 2;
+				} else if(detected_tones[pulse_tone_index] < 10) { //Start a tone
+					pulse_state = 1;
+
+					pulse_tone_count_max = detected_tones[pulse_tone_index];
+					if(pulse_tone_count_max == 0) pulse_tone_count_max = 10; //Handle 0 -> 10 mapping
+
+					pulse_tone_count = 0;
+					pulse_sample_index = 0;
+				}
+			} else if(pulse_state == 2) { //We are waiting for a rate change
+				if(detected_tones[pulse_tone_index] < 10) { //If it's not a number dump it
+					if(detected_tones[pulse_tone_index] == 0) pulse_len = 800; //Handle 0 -> 10 mapping, also the default speed
+					else pulse_len = 800/detected_tones[pulse_tone_index];
+				}
+				pulse_state = 0; //Regardless move to next default state
+			}
+			//Increment tone
+			pulse_tone_index++;
+			if(pulse_tone_index >= TONE_BUF_LEN) pulse_tone_index -= TONE_BUF_LEN;
+		}
+	} 
+
+	if(pulse_state == 1) {
+		if(pulse_sample_index < 8) {
+			pulse_sample_index++;
+			return 32767;
+		} else if(pulse_sample_index < pulse_len) {
+			pulse_sample_index++;
+			return 0;
+		} else {
+			pulse_tone_count++;
+			pulse_sample_index = 0;
+			if(pulse_tone_count == pulse_tone_count_max) {
+				pulse_tone_count = 0;
+				pulse_state = 0;
+				return 0;
+			}
+		}
 	}
 }
 
@@ -114,9 +179,9 @@ void process_sample(short in) {
 	buffer_index++;
 	if(buffer_index >= BLOCKSIZE) buffer_index = 0;
 
-	samplecount++;
-	if(samplecount < fft_interval) return;
-	samplecount = 0;
+	sample_count++;
+	if(sample_count < fft_interval) return;
+	sample_count = 0;
 
 	for(i = 0;i < BLOCKSIZE;i++) {
 		tmp = buffer_index+i;
@@ -145,18 +210,28 @@ void process_sample(short in) {
 	//Touch tone detection
 	tmp = detect_tone(fft_array);
 
+	prev_tone_index = tone_index-1;
+	if(prev_tone_index < 0) prev_tone_index += TONE_BUF_LEN;
+
 	//Rough stack process thing
-	if(tmp == -1) {
-		tone_len_count = 0;
-		if(detectiondetected_tones[tone_index] = tmp;
-		tone_index++;
-	} else if(last_tone != tmp) {
-		if(tone_len_count >= min_tone_len) {
-			if(!dump) printf("%c, ", tonemap[tmp]);
-			last_tone = tmp;
+	if(detected_tones[prev_tone_index] != tmp) {
+		if(tmp == -1) {
+			detected_tones[tone_index] = tmp;
+			tone_index++;
 			tone_len_count = 0;
+		} else {
+			if(tone_len_count >= min_tone_len) {
+				if(detected_tones[prev_tone_index] == -1) {
+					detected_tones[prev_tone_index] = tmp;
+				} else {
+					detected_tones[tone_index] = tmp;
+					tone_index++;
+				}
+				if(!dump) printf("%c, ", tonemap[tmp]);
+				tone_len_count = 0;
+			}
+			tone_len_count++;
 		}
-		tone_len_count++;
 	}
 
 }
