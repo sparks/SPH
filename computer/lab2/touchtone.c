@@ -31,7 +31,7 @@ int samplecount = 0;
 int last_tone = -5;
 int bufcount = 0;
 
-int dump = 1;
+int dump = 0;
 
 int main() {
 	FILE *infile;
@@ -157,7 +157,7 @@ void process_sample(short in) {
 	for(i = 0;i < 12;i++) {
 		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
 			if(last_tone != tones[i][2]) {
-				if(bufcount > 0) {
+				if(bufcount > 4) {
 					if(!dump) printf("%i, ", tones[i][2]);
 					last_tone = tones[i][2];
 					bufcount = 0;
@@ -172,7 +172,7 @@ int snapfreq(int bin) {
 	int valid_freq[7] = {697, 770, 852, 941, 1209, 1336, 1477};
 
 	int val = bin*8000/BLOCKSIZE;
-	int thres = 50;
+	int thres = 40;
 	int diff = 8000;
 	int i, snapped;
 
@@ -183,7 +183,7 @@ int snapfreq(int bin) {
 		}
 	}
 
-	if(diff < thres) {
+	if(diff <= thres) {
 		return snapped;
 	} else {
 		return -1;
