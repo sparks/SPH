@@ -1,5 +1,5 @@
-#ifndef TOUCHTONE_H
-#define TOUCHTONE_H
+#ifndef REALTIME_H
+#define REALTIME_H
 
 #define FIRLEN 53
 

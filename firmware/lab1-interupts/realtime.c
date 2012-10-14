@@ -1,11 +1,10 @@
 #include <dsk6713.h>
 #include <dsk6713_aic23.h>
-#include "touchtone.h"
+#include "realtime.h"
 
+/* The declaration of your sample processing function */
 Int16 process_sample(Int16 x);
-
-void receive_interrupt(void);
-void transmit_interrupt(void);
+void interruptTest(void);
 
 DSK6713_AIC23_Config config = {
     0x0017, /* 0 DSK6713_AIC23_LEFTINVOL Left line input channel volume */
@@ -22,12 +21,27 @@ DSK6713_AIC23_Config config = {
 
 DSK6713_AIC23_CodecHandle hCodec;
 
-Uint32 left, right;
-Int16 mix, audio_out;
+int in_buf_index;
+Int16 in_buf[FIRLEN];
 
-volatile Uint8 audio_ready_flag, channel_flag;
+Uint32 left, right;
+Int16 mix, processed;
+
+volatile Uint8 flag;
+volatile Uint32 casted;
+
+//left right flag
+volatile Uint8 channel_flag;
 
 int main() {
+
+	/* These variables are used to access the hardware */
+	
+
+	//first write flag
+	Uint8 first = 1;
+
+
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
@@ -36,18 +50,28 @@ int main() {
 	IRQ_enable(IRQ_EVT_RINT1);
 	IRQ_enable(IRQ_EVT_XINT1);
 
-	while(!DSK6713_AIC23_write(hCodec, 0));
-
 	channel_flag = 1;
-
 	while(1) {
-		if(audio_ready_flag) {
-		    audio_out = process_sample(mix);
+	    /* Read a sample from each input channel.
+	    * Note that the resulting data is a signed 16 bit int
+	    * in the lower half of a 32 bit unsigned int. */
+
+	    /* average the value read from the two input channels,
+	    * and (implicitly) convert to float */
+
+
+		if(flag) {
+		    processed = process_sample(mix);
 		    /* This next statement is not really necessary, andrremezFIRBP64ly to make the conversion from float to int explicit.       */
 		    // write the sample to both channels
+			casted = ((Int16)processed) & 0xFFFF;
+			if(first){
+		    	while(!DSK6713_AIC23_write(hCodec, casted));
+				first = 0;
+			}
 		    //while(!DSK6713_AIC23_write(hCodec, casted));
 
-			audio_ready_flag = 0;
+			flag = 0;
 		}
 	};
 
@@ -59,11 +83,23 @@ int main() {
 
 /* Process sampling function, outputs one filtered sample at a time */
 Int16 process_sample(Int16 x) {
-	return (Int16)x;
+	int i;
+	float result = 0;
+	// (secondary) fir buffer to allow for seperate blocks
+	in_buf_index = (in_buf_index+1)%FIRLEN;
+
+	in_buf[in_buf_index] = x;
+
+	for(i = 0;i < FIRLEN;i++) {
+		// applys the filter coeficients to the in samples
+		result += remezFIRBP64[i]*(float)in_buf[(in_buf_index+i)%FIRLEN];
+	}
+
+	return (Int16)result;
 }
 
 
-void receive_interrupt(void) {
+void interruptTest(void) {
 	if(channel_flag){
 		DSK6713_AIC23_read(hCodec, &left);
 		channel_flag = 0;
@@ -73,10 +109,10 @@ void receive_interrupt(void) {
 		channel_flag = 1;
 	}
 
-	audio_ready_flag = 1;
+	flag = 1;
 }
 
 void transmit_interrupt(void) {
-	DSK6713_AIC23_write(hCodec, audio_out & 0xFFFF);
+	DSK6713_AIC23_write(hCodec, casted);
 }
 
