@@ -67,7 +67,14 @@ short buffer[BLOCKSIZE];
 int buffer_index;
 
 #define TONE_BUF_LEN 23
-int detected_tones[TONE_BUF_LEN] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+int detected_tones[TONE_BUF_LEN] = 
+{
+	-1, -1, -1, -1, -1, 
+	-1, -1, -1, -1, -1, 
+	-1, -1, -1, -1, -1, 
+	-1, -1, -1, -1, -1, 
+	-1, -1, -1
+};
 int prev_tone_index, tone_index;
 
 int pulse_up = 8;
@@ -110,18 +117,18 @@ int main() {
 	}
 
 	//Read in NN chunks
-    do {
-    	datacount = fread(DATA_IN, sizeof(short), BLOCKSIZE, infile);
-    	process_block(DATA_IN, datacount);
+	do {
+		datacount = fread(DATA_IN, sizeof(short), BLOCKSIZE, infile);
+		process_block(DATA_IN, datacount);
     	// fwrite(DATA_OUT, sizeof(short), datacount, outfile);
-    } while (datacount == BLOCKSIZE);
+	} while (datacount == BLOCKSIZE);
 
-    if(!dump) printf("\n");
+	if(!dump) printf("\n");
 
     /* Close the input and output files, this also flushes all
     * pending I/O, so that other programs can access the data. */
-    fclose(infile);
-    fclose(outfile);
+	fclose(infile);
+	fclose(outfile);
 }
 
 /* Here is the definition of the block processing function */
@@ -163,8 +170,8 @@ short generate_pulse_sample() {
 			} else if(pulse_state == 2) { //We are waiting for a rate change
 				if(detected_tones[pulse_tone_index] < 10) { //If it's not a number dump it
 					if(detected_tones[pulse_tone_index] == 0) pulse_len = 800; //Handle 0 -> 10 mapping, also the default speed
-					else pulse_len = 800/detected_tones[pulse_tone_index];
-				}
+				else pulse_len = 800/detected_tones[pulse_tone_index];
+			}
 				pulse_state = 0; //Regardless move to next default state
 			}
 			//Increment tone
@@ -261,48 +268,48 @@ void process_sample(short in) {
 /** Detection junk below here */
 int detect_tone_new(float absfft[]) {
     // loop iteration vars
-    int i = 0;
+	int i = 0;
 
-    float maxval[2] = {0.0,0.0};
-    int maxfreq[2] = {0,0};
+	float maxval[2] = {0.0,0.0};
+	int maxfreq[2] = {0,0};
 
-    float twist_ratio;
+	float twist_ratio;
 
     //get highest mag low and high freq
-    for(i = 0; i < FREQS_LOW; i++){
-        if(maxval[0] < absfft[freq_low_bin[i]]){
-            maxfreq[0] = freq_low[i];
-            maxval[0] = absfft[freq_low_bin[i]];
-        }
-    }
-    for(i = 0; i < FREQS_HIGH; i++){
-        if(maxval[1] < absfft[freq_high_bin[i]]){
-            maxfreq[1] = freq_high[i];
-            maxval[1] = absfft[freq_high_bin[i]];
-        }
-    }
-    
+	for(i = 0; i < FREQS_LOW; i++){
+		if(maxval[0] < absfft[freq_low_bin[i]]){
+			maxfreq[0] = freq_low[i];
+			maxval[0] = absfft[freq_low_bin[i]];
+		}
+	}
+	for(i = 0; i < FREQS_HIGH; i++){
+		if(maxval[1] < absfft[freq_high_bin[i]]){
+			maxfreq[1] = freq_high[i];
+			maxval[1] = absfft[freq_high_bin[i]];
+		}
+	}
+	
     // check if its a valid tone combo
-    for(i = 0;i < 12;i++) {
-        if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
+	for(i = 0;i < 12;i++) {
+		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
 	    // check sum threshold
-            if(maxval[0] + maxval[1] > THR_SIGNAL){
+			if(maxval[0] + maxval[1] > THR_SIGNAL){
                 // check twist ratios
-                twist_ratio = maxval[0]/maxval[1];
-                if(twist_ratio < THR_REVERSE_TWIST && twist_ratio > THR_STD_TWIST){
-                    return tones[i][2];
-                }else{
+				twist_ratio = maxval[0]/maxval[1];
+				if(twist_ratio < THR_REVERSE_TWIST && twist_ratio > THR_STD_TWIST){
+					return tones[i][2];
+				}else{
                     //failed twist ratio
                     //printf("failed twist ratio\n");
-                    return -3;
-                }
-            }else{
+					return -3;
+				}
+			}else{
                 // failed sum threshold
                 //printf("failed sum threshold\n");
-                return -2;
-            }
-        }
-    }
+				return -2;
+			}
+		}
+	}
     //failed to find valid tone combo
     //printf("no valid tones - %d, %d\n", maxfreq[0], maxfreq[1]);
     return -1; //Random error value
