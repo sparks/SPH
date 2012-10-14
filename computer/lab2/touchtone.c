@@ -31,7 +31,7 @@ int samplecount = 0;
 int last_tone = -5;
 int bufcount = 0;
 
-int dump = 0;
+int dump = 1;
 
 int main() {
 	FILE *infile;
@@ -84,14 +84,17 @@ void process_sample(short in) {
 		return;
 	}
 
-	float fftdata[BLOCKSIZE*2];
+	int fftmode = 0;
+
+	float fftdata[BLOCKSIZE*2+fftmode];
 
 	for(i = 0;i < BLOCKSIZE;i++) {
-		fftdata[2*i] = buffer[i];
-		fftdata[2*i+1] = 0;
+		fftdata[2*i+fftmode] = buffer[i];
+		fftdata[2*i+1+fftmode] = 0;
 	}
 
-	fft(fftdata, BLOCKSIZE);
+	if(fftmode == 1) fft2(fftdata, BLOCKSIZE);
+	else fft(fftdata, BLOCKSIZE);
 
 	float absfft[BLOCKSIZE];
 
@@ -99,7 +102,7 @@ void process_sample(short in) {
 	int maxfreq[2] = {0, 0};
 
 	for(i = 0;i < BLOCKSIZE;i++) {
-		absfft[i] = (fftdata[2*i]*fftdata[2*i]+fftdata[2*i+1]*fftdata[2*i+1]);
+		absfft[i] = (fftdata[2*i+fftmode]*fftdata[2*i+fftmode]+fftdata[2*i+1+fftmode]*fftdata[2*i+1+fftmode]);
 
 		if(dump) {
 			if(i != 0) printf(", ");
@@ -169,7 +172,7 @@ int snapfreq(int bin) {
 	int valid_freq[7] = {697, 770, 852, 941, 1209, 1336, 1477};
 
 	int val = bin*8000/BLOCKSIZE;
-	int thres = 40;
+	int thres = 50;
 	int diff = 8000;
 	int i, snapped;
 
@@ -255,13 +258,13 @@ void fft(float data[], unsigned int nn) {
 				tempr = w_real_cur * data[j] - w_imag_cur * data[j + 1]; //Real = rr-ii
 				tempi = w_real_cur * data[j + 1] + w_imag_cur * data[j]; //Complex = ri+ir
 
-				//Do the upper half of the butterfly who's coefficient is WK/N
-				data[i] += tempr;
-				data[i + 1] += tempi;
-
 				//Do the lower half of the butterfly who's coefficient is -WK/N
 				data[j] = data[i]-tempr;
 				data[j + 1] = data[i + 1] - tempi;
+
+				//Do the upper half of the butterfly who's coefficient is WK/N
+				data[i] += tempr;
+				data[i + 1] += tempi;
 			}
 
 			//Trigonometric recurrence. Move to the next WK/N value
