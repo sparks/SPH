@@ -1,8 +1,14 @@
-#include <math.h>
+// ECSE 436 - Signal Processing Hardware
+// Lab 2
+// Salenikovich, Stepan - 260326129
+// Smith, Severin - 260349085
+
 #include "fft.h"
+#include <math.h>
 
 #define SWAP(a, b) tempr=(a);(a)=(b);(b)=tempr
 
+/** Modified implementation from NR book, indexing changed, some variable names changes */
 //Replaces data[1..2 * nn] by its discrete Fourier transform.
 //data is a complex array of length nn or, equivalently, a real array of length 2 * nn. nn MUST
 //be an integer power of 2 (this is not checked for!).
@@ -85,6 +91,7 @@ void fft(float data[], unsigned int nn) {
 	}
 }
 
+/** Original implementation in NR book */
 void fft2(float data[], unsigned int nn) {
 	unsigned long n,mmax,m,j,istep,i;
 	double wtemp,wr,wpr,wpi,wi,theta;
