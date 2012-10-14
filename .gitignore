@@ -5,4 +5,5 @@
 *.lkf
 *.sbl
 *.exe
-*.WAV
+*.wav
+*.raw

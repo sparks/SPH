@@ -1,3 +1,8 @@
+// ECSE 436 - Signal Processing Hardware
+// Lab 1
+// Salenikovich, Stepan - 260326129
+// Smith, Severin - 260349085
+
 #include <dsk6713.h>
 #include <dsk6713_aic23.h>
 #include "realtime.h"
@@ -42,14 +47,18 @@ int main() {
 	    * in the lower half of a 32 bit unsigned int. */
 	    while(!DSK6713_AIC23_read(hCodec, &x1));
 	    while(!DSK6713_AIC23_read(hCodec, &x2));
-	    /* average the value read from the two input channels,
-	    * and (implicitly) convert to float */
+	    
+            /* average the value read from the two input channels,
+	    * and (implicitly) convert to float
+            * Note: the signal generator is mono, so only the second channel
+            * needs to be used is this case.
+            */
 	    //x = ((Int16)x1 + (Int16)x2)/2.0;
-		x = (Int16)x2;
+	    x = (Int16)x2;
 	    y = process_sample(x);
 	    /* This next statement is not really necessary, andrremezFIRBP64ly to make the conversion from float to int explicit.       */
 	    // write the sample to both channels
-		casted = ((Int16)y) & 0xFFFF;
+	    casted = ((Int16)y) & 0xFFFF;
 	    while(!DSK6713_AIC23_write(hCodec, casted));
 	    while(!DSK6713_AIC23_write(hCodec, casted));
 	};
@@ -64,14 +73,16 @@ int main() {
 Int16 process_sample(Int16 x) {
 	int i;
 	float result = 0;
-	// (secondary) fir buffer to allow for seperate blocks
+	
+        // fir buffer stores the previous FIRLEN (number of fir coefficients)
+        // samples
 	in_buf_index = (in_buf_index+1)%FIRLEN;
 
 	in_buf[in_buf_index] = x;
 
 	for(i = 0;i < FIRLEN;i++) {
 		// applys the filter coeficients to the in samples
-		result += remezFIRBP64[i]*(float)in_buf[(in_buf_index+i)%FIRLEN];
+		result += kaiserBP53[i]*(float)in_buf[(in_buf_index+i)%FIRLEN];
 	}
 
 	return (Int16)result;
