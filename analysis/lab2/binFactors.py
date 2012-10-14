@@ -10,8 +10,8 @@ bins = []
 
 second_harmonics = []
 
-for i in range(n):
-    bins.append((i+1)*bin_size)
+for i in range(n-1):
+    bins.append(i*bin_size)
 
 print "freq\tlow bin\t\thigh bin\tfactor low\tfactor high"
 
