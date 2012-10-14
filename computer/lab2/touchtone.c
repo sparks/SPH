@@ -282,18 +282,21 @@ int detect_tone_new(float absfft[]) {
 
 	float maxval[2] = {0.0,0.0};
 	int maxfreq[2] = {0,0};
+	int maxfreqbin[2] = {0,0};
 
 	float twist_ratio;
 
     //get highest mag low and high freq
 	for(i = 0; i < FREQS_LOW; i++){
 		if(maxval[0] < absfft[freq_low_bin[i]]){
+			maxfreqbin[0] = i;
 			maxfreq[0] = freq_low[i];
 			maxval[0] = absfft[freq_low_bin[i]];
 		}
 	}
 	for(i = 0; i < FREQS_HIGH; i++){
 		if(maxval[1] < absfft[freq_high_bin[i]]){
+			maxfreqbin[1] = i;
 			maxfreq[1] = freq_high[i];
 			maxval[1] = absfft[freq_high_bin[i]];
 		}
@@ -307,6 +310,22 @@ int detect_tone_new(float absfft[]) {
                 // check twist ratios
 				twist_ratio = maxval[0]/maxval[1];
 				if(twist_ratio < THR_REVERSE_TWIST && twist_ratio > THR_STD_TWIST){
+					// check ratio relative to the other valid frequencies
+					for(i = 0; i < FREQS_LOW; i++){
+						if(i!=maxfreqbin[0] && maxval[0]/absfft[freq_low_bin[i]] < THR_LOW_RELATIVE){
+							//failed low freq relative ratio threshold
+							printf("failed low freq relative ratio\n");
+							return -4;
+						}
+					}
+					for(i=0; i<FREQS_HIGH; i++){
+						if(i!=maxfreqbin[1] && maxval[1]/absfft[freq_high_bin[i]] < THR_HIGH_RELATIVE){
+							//failed high freq relative ratio threshold
+							printf("failed high freq relative ratio\n");
+							return -4;
+						}
+					}
+					// did not return above, so success, return tone
 					return tones[i][2];
 				}else{
                     //failed twist ratio
