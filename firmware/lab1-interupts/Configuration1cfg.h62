@@ -37,6 +37,7 @@
 	.global	GBL_stackbeg
 	.global	_c_int00
 	.global	_interruptTest
+	.global	_transmit_interrupt
 	.global	SWI_F_iexec
 	.global	SWI_F_run
 	.global	GBL_NULL

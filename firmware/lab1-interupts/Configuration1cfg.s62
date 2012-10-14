@@ -5,7 +5,7 @@
 ;; INPUT Configuration1.cdb
 
 ;; CONFIGURATION/VERSION INFORMATION
-	.asg "Mon Oct 01 13:37:12 2012", VERS$DATE
+	.asg "Sun Oct 14 18:41:26 2012", VERS$DATE
 
 ;; PROLOGUE
 	.include Configuration1cfg.h62
@@ -739,13 +739,13 @@ DIO$SETOF           .set 00H
 ;;
 ;; HWI_Obj HWI_INT12 (function, monitor, addr, dataType, operation, client, iUseDispatcher, iArg, IntrMask, iCCBitMask)
 	.global HWI_INT12
-	.asg HWI_unused, _function
+	.asg _transmit_interrupt, _function
 	.asg "Nothing", _monitor
 	.asg 00H, _addr
 	.asg "signed", _dataType
 	.asg "STS_add(*addr)", _operation
 	.asg "USER", _client
-	.asg 00H, _iUseDispatcher
+	.asg 01H, _iUseDispatcher
 	.asg 00H, _iArg
 	.asg 01000H, _IntrMask
 	.asg 01H, _iCCBitMask

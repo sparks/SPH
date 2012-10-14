@@ -7,8 +7,8 @@ Int16 process_sample(Int16 x);
 void interruptTest(void);
 
 DSK6713_AIC23_Config config = {
-    0x001C, /* 0 DSK6713_AIC23_LEFTINVOL Left line input channel volume */
-    0x001C, /* 1 DSK6713_AIC23_RIGHTINVOL Right line input channel volume */
+    0x0017, /* 0 DSK6713_AIC23_LEFTINVOL Left line input channel volume */
+    0x0017, /* 1 DSK6713_AIC23_RIGHTINVOL Right line input channel volume */
     0x01f9, /* 2 DSK6713_AIC23_LEFTHPVOL Left channel headphone volume */
     0x01f9, /* 3 DSK6713_AIC23_RIGHTHPVOL Right channel headphone volume */
     0x0011, /* 4 DSK6713_AIC23_ANAPATH Analog audio path control */
@@ -27,21 +27,30 @@ Int16 in_buf[FIRLEN];
 Uint32 left, right;
 Int16 mix, processed;
 
-Uint8 flag;
+volatile Uint8 flag;
+volatile Uint32 casted;
+
+//left right flag
+volatile Uint8 channel_flag;
 
 int main() {
 
 	/* These variables are used to access the hardware */
-	Uint32 casted;
+	
+
+	//first write flag
+	Uint8 first = 1;
+
 
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
 	
 	IRQ_globalEnable();
-	IRQ_nmiEnable();
 	IRQ_enable(IRQ_EVT_RINT1);
+	IRQ_enable(IRQ_EVT_XINT1);
 
+	channel_flag = 1;
 	while(1) {
 	    /* Read a sample from each input channel.
 	    * Note that the resulting data is a signed 16 bit int
@@ -56,8 +65,11 @@ int main() {
 		    /* This next statement is not really necessary, andrremezFIRBP64ly to make the conversion from float to int explicit.       */
 		    // write the sample to both channels
 			casted = ((Int16)processed) & 0xFFFF;
-		    while(!DSK6713_AIC23_write(hCodec, casted));
-		    while(!DSK6713_AIC23_write(hCodec, casted));
+			if(first){
+		    	while(!DSK6713_AIC23_write(hCodec, casted));
+				first = 0;
+			}
+		    //while(!DSK6713_AIC23_write(hCodec, casted));
 
 			flag = 0;
 		}
@@ -88,11 +100,19 @@ Int16 process_sample(Int16 x) {
 
 
 void interruptTest(void) {
-	DSK6713_AIC23_read(hCodec, &left);
-	DSK6713_AIC23_read(hCodec, &right);
-
-	mix = ((Int16)left + (Int16)right)/2.0;
+	if(channel_flag){
+		DSK6713_AIC23_read(hCodec, &left);
+		channel_flag = 0;
+	} else {
+		DSK6713_AIC23_read(hCodec, &right);
+		mix = ((Int16)left + (Int16)right)/2.0;
+		channel_flag = 1;
+	}
 
 	flag = 1;
+}
+
+void transmit_interrupt(void) {
+	DSK6713_AIC23_write(hCodec, casted);
 }
 

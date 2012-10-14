@@ -92,7 +92,7 @@ type GlobalStatus {
         prop Visible :: 0
         prop Writable :: 0
     }
-    global DATE :: "Mon Oct 01 13:37:12 2012" { 
+    global DATE :: "Sun Oct 14 18:41:26 2012" { 
         prop Type :: "{21455EA3-B96A-11cf-9BFE-0000C0AC14C7}"
         prop Visible :: 0
         prop Writable :: 0
@@ -4211,7 +4211,7 @@ object HWI_INT12 :: HWI {
     param iSource :: MCSP_1_Transmit
     param iReMappable :: 1
     param iIntrEnableMask :: 4096
-    param function :: @HWI_unused
+    param function :: @_transmit_interrupt
     param iSTSObj :: HWI_INT12_STS
     param monitor :: "Nothing"
     param saveAddr :: 0
@@ -4220,7 +4220,7 @@ object HWI_INT12 :: HWI {
     param dataType :: "signed"
     param operation :: "STS_add(*addr)"
     param client :: "USER"
-    param iUseDispatcher :: 0
+    param iUseDispatcher :: 1
     param iArg :: 0
     param iIntrMask :: "self"
     param IntrMask :: 4096
