@@ -21,8 +21,8 @@
 #define THR_STD_TWIST  0.5      // max ratio of higher to lower freq
                                 // to avoid division, this is actually the
                                 // inverse ratio (1/2.0)
-#define THR_LOW_RELATIVE 4.0    // min ratio of highest mag low freq to others
-#define THR_HIGH_RELATIVE 4.0   // min ratio of highest mag high freq to others
+#define THR_LOW_RELATIVE 2.0    // min ratio of highest mag low freq to others
+#define THR_HIGH_RELATIVE 2.0   // min ratio of highest mag high freq to others
 #define THR_LOW_2H 10.0         // min ratio of low freq to its 2nd harmonic
 #define THR_HIGH_2H 10.0        // min ratio of high freq to its 2nd harmonic
 
