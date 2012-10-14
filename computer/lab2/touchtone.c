@@ -12,6 +12,19 @@
 #define BLOCKSIZE 128  //File chunk read len
 #define INPUT_FILENAME "touchtones.raw"
 #define OUTPUT_FILENAME "pulses.raw"
+#define FREQS_LOW 4     //number of valid low freqs to check
+#define FREQS_HIGH 3    // number of valid high freqs to check
+
+// threshold
+#define THR_SIGNAL 50000.0      // sum of the magnitudes must be above this
+#define THR_REVERSE_TWIST 2.0   // max ratio of lower to higher freq
+#define THR_STD_TWIST  0.5      // max ratio of higher to lower freq
+                                // to avoid division, this is actually the
+                                // inverse ratio (1/2.0)
+#define THR_LOW_RELATIVE 4.0    // min ratio of highest mag low freq to others
+#define THR_HIGH_RELATIVE 4.0   // min ratio of highest mag high freq to others
+#define THR_LOW_2H 10.0         // min ratio of low freq to its 2nd harmonic
+#define THR_HIGH_2H 10.0        // min ratio of high freq to its 2nd harmonic
 
 // Prototypes
 void process_block(short*, int);
@@ -19,6 +32,7 @@ void process_sample(short);
 int snapfreq(int);
 int abs(int);
 int detect_tone(float*);
+int detect_tone_new(float*);
 
 int tones[12][3] = {
 	{697, 1209, 1},
@@ -34,6 +48,13 @@ int tones[12][3] = {
 	{941, 1336, 0},
 	{941, 1477, 11}
 };
+
+// valid bins for 128 length fft
+int freq_low[] = {697, 770, 852, 941};
+int freq_high[] = {1209, 1336, 1477};
+int freq_low_bin[] = {11, 12, 14, 15};
+int freq_high_bin[] = {19, 21, 23};
+//int freq_harmonic_bin[] = {22, 24, 26, 30, 38, 42, 47};
 
 char tonemap[12] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'};
 
@@ -108,7 +129,7 @@ void process_block(short *in, int size) {
 	int i;
 	for(i = 0;i < size;i++) {
 		//Equivalent to main loop
-		process_sample(in[i]);	
+		process_sample(in[i]);
 	}
 }
 
@@ -208,7 +229,8 @@ void process_sample(short in) {
 	}
 
 	//Touch tone detection
-	tmp = detect_tone(fft_array);
+	tmp = detect_tone_new(fft_array);
+	if(tmp < 0) tmp = -1;
 
 	prev_tone_index = tone_index-1;
 	if(prev_tone_index < 0) prev_tone_index += TONE_BUF_LEN;
@@ -237,6 +259,55 @@ void process_sample(short in) {
 }
 
 /** Detection junk below here */
+int detect_tone_new(float absfft[]) {
+    // loop iteration vars
+    int i = 0;
+
+    float maxval[2] = {0.0,0.0};
+    int maxfreq[2] = {0,0};
+
+    float twist_ratio;
+
+    //get highest mag low and high freq
+    for(i = 0; i < FREQS_LOW; i++){
+        if(maxval[0] < absfft[freq_low_bin[i]]){
+            maxfreq[0] = freq_low[i];
+            maxval[0] = absfft[freq_low_bin[i]];
+        }
+    }
+    for(i = 0; i < FREQS_HIGH; i++){
+        if(maxval[1] < absfft[freq_high_bin[i]]){
+            maxfreq[1] = freq_high[i];
+            maxval[1] = absfft[freq_high_bin[i]];
+        }
+    }
+    
+    // check if its a valid tone combo
+    for(i = 0;i < 12;i++) {
+        if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
+	    // check sum threshold
+            if(maxval[0] + maxval[1] > THR_SIGNAL){
+                // check twist ratios
+                twist_ratio = maxval[0]/maxval[1];
+                if(twist_ratio < THR_REVERSE_TWIST && twist_ratio > THR_STD_TWIST){
+                    return tones[i][2];
+                }else{
+                    //failed twist ratio
+                    //printf("failed twist ratio\n");
+                    return -3;
+                }
+            }else{
+                // failed sum threshold
+                //printf("failed sum threshold\n");
+                return -2;
+            }
+        }
+    }
+    //failed to find valid tone combo
+    //printf("no valid tones - %d, %d\n", maxfreq[0], maxfreq[1]);
+    return -1; //Random error value
+}
+
 
 int detect_tone(float absfft[]) {
 	int i;
