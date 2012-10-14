@@ -98,9 +98,6 @@ void process_sample(short in) {
 
 	float absfft[BLOCKSIZE];
 
-	float maxval[2] = {0, 0};
-	int maxfreq[2] = {0, 0};
-
 	for(i = 0;i < BLOCKSIZE;i++) {
 		absfft[i] = (fftdata[2*i+fftmode]*fftdata[2*i+fftmode]+fftdata[2*i+1+fftmode]*fftdata[2*i+1+fftmode]);
 
@@ -114,6 +111,11 @@ void process_sample(short in) {
 		printf("\n");
 		return;
 	}
+
+	//TOUCHTONE DETECTION STARTS HERE
+
+	float maxval[2] = {0, 0};
+	int maxfreq[2] = {0, 0};
 
 	for(i = 0;i < BLOCKSIZE/2;i++) {
 		if(absfft[i] > maxval[1]) {
