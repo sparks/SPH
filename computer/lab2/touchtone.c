@@ -10,7 +10,7 @@
 #include "touchtone.h"
 
 #define BLOCKSIZE 128  //File chunk read len
-#define INPUT_FILENAME "touchtones2.raw"
+#define INPUT_FILENAME "touchtones.raw"
 #define OUTPUT_FILENAME "pulses.raw"
 #define FREQS_LOW 4     //number of valid low freqs to check
 #define FREQS_HIGH 3    // number of valid high freqs to check
@@ -278,7 +278,7 @@ void process_sample(short in) {
 /** Detection junk below here */
 int detect_tone_new(float absfft[]) {
     // loop iteration vars
-	int i = 0;
+	int i,j;
 
 	float maxval[2] = {0.0,0.0};
 	int maxfreq[2] = {0,0};
@@ -311,17 +311,17 @@ int detect_tone_new(float absfft[]) {
 				twist_ratio = maxval[0]/maxval[1];
 				if(twist_ratio < THR_REVERSE_TWIST && twist_ratio > THR_STD_TWIST){
 					// check ratio relative to the other valid frequencies
-					for(i = 0; i < FREQS_LOW; i++){
-						if(i!=maxfreqbin[0] && maxval[0]/absfft[freq_low_bin[i]] < THR_LOW_RELATIVE){
+					for(j = 0; j < FREQS_LOW; j++){
+						if(j!=maxfreqbin[0] && maxval[0]/absfft[freq_low_bin[j]] < THR_LOW_RELATIVE){
 							//failed low freq relative ratio threshold
-							printf("failed low freq relative ratio\n");
+							//printf("failed low freq relative ratio\n");
 							return -4;
 						}
 					}
-					for(i=0; i<FREQS_HIGH; i++){
-						if(i!=maxfreqbin[1] && maxval[1]/absfft[freq_high_bin[i]] < THR_HIGH_RELATIVE){
+					for(j=0; j<FREQS_HIGH; j++){
+						if(j!=maxfreqbin[1] && maxval[1]/absfft[freq_high_bin[j]] < THR_HIGH_RELATIVE){
 							//failed high freq relative ratio threshold
-							printf("failed high freq relative ratio\n");
+							//printf("failed high freq relative ratio\n");
 							return -4;
 						}
 					}
