@@ -10,7 +10,7 @@
 #include "touchtone.h"
 
 #define BLOCKSIZE 128  //File chunk read len
-#define INPUT_FILENAME "touchtones.raw"
+#define INPUT_FILENAME "touchtones2.raw"
 #define OUTPUT_FILENAME "pulses.raw"
 #define FREQS_LOW 4     //number of valid low freqs to check
 #define FREQS_HIGH 3    // number of valid high freqs to check
@@ -67,15 +67,8 @@ short DATA_OUT[BLOCKSIZE];
 short buffer[BLOCKSIZE];
 int buffer_index;
 
-#define TONE_BUF_LEN 23
-int detected_tones[TONE_BUF_LEN] = 
-{
-	-1, -1, -1, -1, -1, 
-	-1, -1, -1, -1, -1, 
-	-1, -1, -1, -1, -1, 
-	-1, -1, -1, -1, -1, 
-	-1, -1, -1
-};
+#define TONE_BUF_LEN 30
+int detected_tones[TONE_BUF_LEN];
 int prev_tone_index, tone_index, gap_flag = 1;
 
 int pulse_up = 8;
@@ -172,6 +165,7 @@ short generate_pulse_sample(void) {
 			} else if(pulse_state == 0) { //Waiting for another tone
 				if(detected_tones[pulse_tone_index] == 10) { //Change rate on next command
 					pulse_state = 2;
+					// printf("Got a * at index %i\n", pulse_tone_index);
 				} else if(detected_tones[pulse_tone_index] < 10) { //Start a tone
 					pulse_state = 1;
 
@@ -184,12 +178,14 @@ short generate_pulse_sample(void) {
 			} else if(pulse_state == 2) { //We are waiting for a rate change
 				if(detected_tones[pulse_tone_index] < 10) { //If it's not a number dump it
 					if(detected_tones[pulse_tone_index] == 0) pulse_len = 800; //Handle 0 -> 10 mapping, also the default speed
-				else pulse_len = 800/detected_tones[pulse_tone_index];
-			}
+					else pulse_len = 8000/detected_tones[pulse_tone_index];
+					// printf("\nTone was %i at index %i New pulse_len: %i\n", detected_tones[pulse_tone_index], pulse_tone_index, pulse_len);
+				}
 				pulse_state = 0; //Regardless move to next default state
 			}
 			//Increment tone
 			pulse_tone_index++;
+			// printf("index is %i %i\n", tone_index, pulse_tone_index);
 			if(pulse_tone_index >= TONE_BUF_LEN) pulse_tone_index -= TONE_BUF_LEN;
 		}
 	} 
