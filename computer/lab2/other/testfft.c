@@ -26,14 +26,14 @@ int main(int argc, char const *argv[])
 		wi = 0.0;
 
 		// printf("%lu\n", mmax);
-		for (m = 0;m < mmax;m += 2) { //Here are the two nested inner loops.
+		for (m = 1;m < mmax;m += 2) { //Here are the two nested inner loops.
 			// printf("%f + %fi\n", wr, wi);
 			for (i = m;i < n;i += istep) {
 				j = i + mmax; //j is the complementary point which completes the current butterfly
 				printf("%i, %i\n", i, j);
 
 				// j = i + mmax; //This is the Danielson-Lanczos formula:
-				tempr = wr *1-wi * 1;
+				tempr = wr *1 - wi * 1;
 				tempi = wr * 1 + wi * 1;
 				// printf("(%f, %f)\n", tempr, tempi);
 

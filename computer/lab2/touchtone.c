@@ -14,18 +14,25 @@
 #define BLOCKSIZE 128  //File chunk read len
 #define INPUT_FILENAME "touchtones.raw"
 
-short DATA_IN[BLOCKSIZE]; //16 bit value
-short buff[BLOCKSIZE];
-
-/* declare the block processing function */
+// Prototypes
 void process_block(short*, int);
 void process_sample(short);
 void fft(float[], unsigned int);
+void fft2(float[], unsigned int);
 int snapfreq(int);
 int abs(int);
+
+//Variables
+short DATA_IN[BLOCKSIZE]; //16 bit value
+short buffer[BLOCKSIZE];
+
+int samplecount = 0;
+
 int last_tone = -5;
 int bufcount = 0;
-int samplecount = 0;
+
+int dump = 0;
+
 int main() {
 	FILE *infile;
 	int datacount;
@@ -36,13 +43,16 @@ int main() {
 		printf("fopen for reading failed with %d!\n", errno);
 		return 0;
 	}
-	printf("-1, 0, 1, 5, 1, 4, 3, 9, 8, 2, 7, 2, 6, 2, 5, 1, 0, 6, 3, -2\n");
+
+	if(!dump) printf("-1, 0, 1, 5, 1, 4, 3, 9, 8, 2, 7, 2, 6, 2, 5, 1, 0, 6, 3, -2\n");
 
 	//Read in NN chunks
     do {
     	datacount = fread(DATA_IN, sizeof(short), BLOCKSIZE, infile);
     	process_block(DATA_IN, datacount);
     } while (datacount == BLOCKSIZE);
+
+    if(!dump) printf("\n");
 
     /* Close the input and output files, this also flushes all
     * pending I/O, so that other programs can access the data. */
@@ -61,18 +71,23 @@ void process_sample(short in) {
 	int i;
 
 	for(i = 0;i < BLOCKSIZE-1;i++) {
-		buff[i] = buff[i+1];
+		buffer[i] = buffer[i+1];
 	}
 
-	buff[BLOCKSIZE-1] = in;
+	buffer[BLOCKSIZE-1] = in;
 
 	samplecount++;
-	if(samplecount == 10) samplecount = 0;
+
+	if(samplecount == BLOCKSIZE) {
+		samplecount = 0;
+	} else {
+		return;
+	}
 
 	float fftdata[BLOCKSIZE*2];
 
 	for(i = 0;i < BLOCKSIZE;i++) {
-		fftdata[2*i] = buff[i];
+		fftdata[2*i] = buffer[i];
 		fftdata[2*i+1] = 0;
 	}
 
@@ -83,9 +98,21 @@ void process_sample(short in) {
 	float maxval[2] = {0, 0};
 	int maxfreq[2] = {0, 0};
 
-	for(i = 0;i < BLOCKSIZE/2;i++) {
+	for(i = 0;i < BLOCKSIZE;i++) {
 		absfft[i] = (fftdata[2*i]*fftdata[2*i]+fftdata[2*i+1]*fftdata[2*i+1]);
 
+		if(dump) {
+			if(i != 0) printf(", ");
+			printf("%f", absfft[i]);
+		}
+	}
+
+	if(dump) {
+		printf("\n");
+		return;
+	}
+
+	for(i = 0;i < BLOCKSIZE/2;i++) {
 		if(absfft[i] > maxval[1]) {
 			maxval[0] = maxval[1];
 			maxfreq[0] = maxfreq[1];
@@ -127,17 +154,15 @@ void process_sample(short in) {
 	for(i = 0;i < 12;i++) {
 		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
 			if(last_tone != tones[i][2]) {
-				if(bufcount > 70) {
-					printf("%i, ", tones[i][2]);
+				if(bufcount > 0) {
+					if(!dump) printf("%i, ", tones[i][2]);
 					last_tone = tones[i][2];
 					bufcount = 0;
 				}
 				bufcount++;
-
 			}
 		}
 	}
-
 }
 
 int snapfreq(int bin) {
@@ -167,7 +192,6 @@ int abs(int val) {
 	if(val < 0) return -val;
 	else return val;
 }
-
 
 //Replaces data[1..2 * nn] by its discrete Fourier transform.
 //data is a complex array of length nn or, equivalently, a real array of length 2 * nn. nn MUST
@@ -250,3 +274,55 @@ void fft(float data[], unsigned int nn) {
 		dftlen = istep; //Move to DFT-2N, e.g. one level higher
 	}
 }
+
+void fft2(float data[], unsigned int nn) {
+	unsigned long n,mmax,m,j,istep,i;
+	double wtemp,wr,wpr,wpi,wi,theta;
+	float tempr,tempi;
+
+	n = nn << 1;
+	j = 1;
+
+	for (i = 1;i < n;i += 2) {
+		if (j > i) {
+			SWAP(data[j],data[i]);
+			SWAP(data[j + 1],data[i + 1]);
+		}
+
+		m = nn;
+
+		while (m >= 2 && j > m) {
+			j -= m;
+			m >>= 1;
+		}
+
+		j += m;
+	}
+
+	mmax = 2;
+
+	while (n > mmax) {
+		istep = mmax << 1;
+		theta = -1 * (6.28318530717959/mmax); 
+		wpr = cos(theta);
+		wpi = sin(theta);
+		wr = 1.0;
+		wi = 0.0;
+		for (m = 1; m < mmax;m += 2) {
+			for (i = m;i <= n;i += istep) {
+				j = i + mmax;
+				tempr = wr * data[j]-wi * data[j + 1];
+				tempi = wr * data[j + 1] + wi * data[j];
+				data[j] = data[i]-tempr;
+				data[j + 1] = data[i + 1]-tempi;
+				data[i] += tempr;
+				data[i + 1] += tempi;
+			}
+			wtemp = wr;
+			wr = wr * wpr-wi * wpi;
+			wi = wi * wpr + wtemp * wpi;
+		}
+
+		mmax = istep;
+	}
+} 
