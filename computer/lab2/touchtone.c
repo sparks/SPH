@@ -10,7 +10,7 @@
 #include "touchtone.h"
 
 #define BLOCKSIZE 128  //File chunk read len
-#define INPUT_FILENAME "touchtones.raw"
+#define INPUT_FILENAME "touchtones2.raw"
 #define OUTPUT_FILENAME "pulses.raw"
 #define FREQS_LOW 4     //number of valid low freqs to check
 #define FREQS_HIGH 3    // number of valid high freqs to check
@@ -27,12 +27,13 @@
 #define THR_HIGH_2H 10.0        // min ratio of high freq to its 2nd harmonic
 
 // Prototypes
-void process_block(short*, int);
+void process_block(short*, short*, int);
 void process_sample(short);
 int snapfreq(int);
 int abs(int);
 int detect_tone(float*);
 int detect_tone_new(float*);
+short generate_pulse_sample(void);
 
 int tones[12][3] = {
 	{697, 1209, 1},
@@ -75,7 +76,7 @@ int detected_tones[TONE_BUF_LEN] =
 	-1, -1, -1, -1, -1, 
 	-1, -1, -1
 };
-int prev_tone_index, tone_index;
+int prev_tone_index, tone_index, gap_flag = 1;
 
 int pulse_up = 8;
 int pulse_len = 800;
@@ -119,9 +120,17 @@ int main() {
 	//Read in NN chunks
 	do {
 		datacount = fread(DATA_IN, sizeof(short), BLOCKSIZE, infile);
-		process_block(DATA_IN, datacount);
-    	// fwrite(DATA_OUT, sizeof(short), datacount, outfile);
+		process_block(DATA_IN, DATA_OUT, datacount);
+    	fwrite(DATA_OUT, sizeof(short), datacount, outfile);
 	} while (datacount == BLOCKSIZE);
+
+	while(pulse_tone_index != tone_index && pulse_state != 0) {
+		int i;
+		for(i = 0;i < BLOCKSIZE;i++) {
+			DATA_OUT[i] = generate_pulse_sample();
+		}
+		fwrite(DATA_OUT, sizeof(short), BLOCKSIZE, outfile);
+	}
 
 	if(!dump) printf("\n");
 
@@ -132,24 +141,29 @@ int main() {
 }
 
 /* Here is the definition of the block processing function */
-void process_block(short *in, int size) {
+void process_block(short *in, short *out, int size) {
 	int i;
 	for(i = 0;i < size;i++) {
 		//Equivalent to main loop
 		process_sample(in[i]);
+		out[i] = generate_pulse_sample();
 	}
 }
 
-short generate_pulse_sample() {
+short generate_pulse_sample(void) {
 	if(pulse_state != 1) {
 		if(pulse_tone_index == tone_index) {
 			return 0;
+		} if(pulse_state == 3) {
+			pulse_sample_index++;
+			if(pulse_sample_index > 4000) {
+				pulse_state = 0;
+				pulse_sample_index = 0;
+			}
 		} else {
 			//We will read a tone
 			if(pulse_state == -1) { //Look for the first * character
-				if(detected_tones[pulse_tone_index] != 10) {
-					return 0;
-				} else {
+				if(detected_tones[pulse_tone_index] == 10) {
 					pulse_state = 0;
 				}
 			} else if(detected_tones[pulse_tone_index] == 11) { //Look for the termination character
@@ -190,13 +204,15 @@ short generate_pulse_sample() {
 		} else {
 			pulse_tone_count++;
 			pulse_sample_index = 0;
-			if(pulse_tone_count == pulse_tone_count_max) {
+			if(pulse_tone_count >= pulse_tone_count_max) {
 				pulse_tone_count = 0;
-				pulse_state = 0;
+				pulse_state = 3;
 				return 0;
 			}
 		}
 	}
+
+	return 0;
 }
 
 void process_sample(short in) {
@@ -237,29 +253,23 @@ void process_sample(short in) {
 
 	//Touch tone detection
 	tmp = detect_tone_new(fft_array);
-	if(tmp < 0) tmp = -1;
+	if(tmp < 0) gap_flag = 1;
 
 	prev_tone_index = tone_index-1;
 	if(prev_tone_index < 0) prev_tone_index += TONE_BUF_LEN;
 
 	//Rough stack process thing
-	if(detected_tones[prev_tone_index] != tmp) {
-		if(tmp == -1) {
-			detected_tones[tone_index] = tmp;
-			tone_index++;
-			tone_len_count = 0;
-		} else {
+	if(gap_flag) {
+		if(tmp >= 0) {
 			if(tone_len_count >= min_tone_len) {
-				if(detected_tones[prev_tone_index] == -1) {
-					detected_tones[prev_tone_index] = tmp;
-				} else {
-					detected_tones[tone_index] = tmp;
-					tone_index++;
-				}
+				detected_tones[tone_index] = tmp;
+				tone_index++;
 				if(!dump) printf("%c, ", tonemap[tmp]);
 				tone_len_count = 0;
+				gap_flag = 0;
+			} else {
+				tone_len_count++;
 			}
-			tone_len_count++;
 		}
 	}
 
@@ -291,7 +301,7 @@ int detect_tone_new(float absfft[]) {
 			maxval[1] = absfft[freq_high_bin[i]];
 		}
 	}
-	
+
     // check if its a valid tone combo
 	for(i = 0;i < 12;i++) {
 		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
