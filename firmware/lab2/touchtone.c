@@ -1,24 +1,15 @@
-// ECSE 436 - Signal Processing Hardware
-// Lab 1
-// Salenikovich, Stepan - 260326129
-// Smith, Severin - 260349085
-
 #include <dsk6713.h>
 #include <dsk6713_aic23.h>
 #include "touchtone.h"
 
-void tone(int);
-void output(float);
-void process_sample(float);
-void process_FFT(void);
-void adc_interrupt(void)
-
-/* The declaration of your sample processing function */
 Int16 process_sample(Int16 x);
 
+void receive_interrupt(void);
+void transmit_interrupt(void);
+
 DSK6713_AIC23_Config config = {
-    0x001C, /* 0 DSK6713_AIC23_LEFTINVOL Left line input channel volume */
-    0x001C, /* 1 DSK6713_AIC23_RIGHTINVOL Right line input channel volume */
+    0x0017, /* 0 DSK6713_AIC23_LEFTINVOL Left line input channel volume */
+    0x0017, /* 1 DSK6713_AIC23_RIGHTINVOL Right line input channel volume */
     0x01f9, /* 2 DSK6713_AIC23_LEFTHPVOL Left channel headphone volume */
     0x01f9, /* 3 DSK6713_AIC23_RIGHTHPVOL Right channel headphone volume */
     0x0011, /* 4 DSK6713_AIC23_ANAPATH Analog audio path control */
@@ -30,69 +21,76 @@ DSK6713_AIC23_Config config = {
 };
 
 DSK6713_AIC23_CodecHandle hCodec;
-boolean adcFlag;
 
-int main(void) {
+Uint32 left, right;
+Int16 mix, audio_out;
 
-	/* These variables are used to access the hardware */
-	Uint32 x1,x2,casted;
+Uint32 casted_audio_out;
 
-	/* Working variables */
+volatile Uint8 audio_ready_flag, channel_flag;
 
-	Int16 x,y;
-
+int main() {	
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
+	
+	IRQ_globalEnable();
+	IRQ_enable(IRQ_EVT_RINT1);
+	IRQ_enable(IRQ_EVT_XINT1);
+
+	while(!DSK6713_AIC23_write(hCodec, 0));
+
+	channel_flag = 1;
 
 	while(1) {
-		if(adcFlag) {
-			process_sample(mix);
-			adcFlag = false;
+		if(audio_ready_flag) {
+		    audio_out = process_sample(mix);
+		    /* This next statement is not really necessary, andrremezFIRBP64ly to make the conversion from float to int explicit.       */
+		    // write the sample to both channels
+		    //while(!DSK6713_AIC23_write(hCodec, casted));
+
+			audio_ready_flag = 0;
 		}
 	};
 
+	/* The program will never exit this loop */
+	/* However, if you _do_ exit the loop (say, using a break
+	 * statement) close the D/A converter properly */
 	DSK6713_AIC23_closeCodec(hCodec);
 }
 
-void adc_interrupt(void) {
-	Uint32 left, right;
-	float mix;
-
-	DSK6713_AIC23_read(hCodec, &left);
-	DSK6713_AIC23_read(hCodec, &right);
-	mix = ((Int16)left + (Int16)right)/2.0;
-
-}
-
-void output(float mix) {
-	Uint32 casted;
-
-	casted = ((Int16)float) & 0xFFFF;
-	while(!DSK6713_AIC23_write(hCodec, casted));
-	while(!DSK6713_AIC23_write(hCodec, casted));
-
-	adcFlag = true;
-}
-
 /* Process sampling function, outputs one filtered sample at a time */
-void process_sample(float x) {
-	//Buffer
-	//FFT
-	//When new FFT -> call processFFT()
+Int16 process_sample(Int16 x) {
+	int i;
+	float result = 0;
+	// (secondary) fir buffer to allow for seperate blocks
+	in_buf_index = (in_buf_index+1)%FIRLEN;
+
+	in_buf[in_buf_index] = x;
+
+	for(i = 0;i < FIRLEN;i++) {
+		// applys the filter coeficients to the in samples
+		result += remezFIRBP64[i]*(float)in_buf[(in_buf_index+i)%FIRLEN];
+	}
+
+	return (Int16)result;
 }
 
-void process_FFT() {
-	//Compute mag?
-	//Look at bins, maybe average, then threshold
-	//Determine what's happended based on simple state machine
-	//New tone -> call tone()
-	//Continued tone or no tone -> Do nothing
+
+void receive_interrupt(void) {
+	if(channel_flag){
+		DSK6713_AIC23_read(hCodec, &left);
+		channel_flag = 0;
+	} else {
+		DSK6713_AIC23_read(hCodec, &right);
+		mix = ((Int16)left + (Int16)right)/2.0;
+		channel_flag = 1;
+	}
+
+	audio_ready_flag = 1;
 }
 
-void tone(int tone) {
-	//This is called only when a tone starts
-	//Add the tone to some stack and write to file to record the tone
-	//Initiate the pulse thing aswell
-	//Whatever else
+void transmit_interrupt(void) {
+	DSK6713_AIC23_write(hCodec, audio_out & 0xFFFF);
 }
+
