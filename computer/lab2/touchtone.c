@@ -10,8 +10,10 @@
 #include "touchtone.h"
 
 #define BLOCKSIZE 128  //File chunk read len
-#define INPUT_FILENAME "touchtones2.raw"
+#define INPUT_FILENAME "touchtones.raw"
 #define OUTPUT_FILENAME "pulses.raw"
+#define TEXT_FILENAME "pulserecord.txt" 
+
 #define FREQS_LOW 4     //number of valid low freqs to check
 #define FREQS_HIGH 3    // number of valid high freqs to check
 
@@ -34,6 +36,7 @@ int abs(int);
 int detect_tone(float*);
 int detect_tone_new(float*);
 short generate_pulse_sample(void);
+void record_tones_to_file(void);
 
 int tones[12][3] = {
 	{697, 1209, 1},
@@ -69,7 +72,7 @@ int buffer_index;
 
 #define TONE_BUF_LEN 30
 int detected_tones[TONE_BUF_LEN];
-int prev_tone_index, tone_index, gap_flag = 1;
+int write_tone_index, prev_tone_index, tone_index, gap_flag = 1;
 
 int pulse_up = 8;
 int pulse_len = 800;
@@ -89,6 +92,7 @@ int min_tone_len = 10;
 int freq_snap_thres = 40;
 
 float fft_array[BLOCKSIZE*2+fftmode];
+FILE *textfile;
 
 int main() {
 	if(!dump) printf("*, 0, 1, 5, 1, 4, 3, 9, 8, 2, 7, 2, 6, 2, 5, 1, 0, 6, 3, #\n");
@@ -106,6 +110,13 @@ int main() {
     /* Open the output file and quit if fail */
 	outfile = fopen(OUTPUT_FILENAME,"wb");
 	if (!outfile) {
+		printf("fopen for writing failed with %d!\n", errno);
+		return 0;
+	}
+
+    /* Open the output file and quit if fail */
+	textfile = fopen(TEXT_FILENAME,"wb");
+	if (!textfile) {
 		printf("fopen for writing failed with %d!\n", errno);
 		return 0;
 	}
@@ -131,6 +142,7 @@ int main() {
     * pending I/O, so that other programs can access the data. */
 	fclose(infile);
 	fclose(outfile);
+	fclose(textfile);
 }
 
 /* Here is the definition of the block processing function */
@@ -140,6 +152,12 @@ void process_block(short *in, short *out, int size) {
 		//Equivalent to main loop
 		process_sample(in[i]);
 		out[i] = generate_pulse_sample();
+	}
+}
+
+void record_tones_to_file(void) {
+	for(;write_tone_index != (pulse_tone_index+1)%TONE_BUF_LEN;write_tone_index = (write_tone_index+1)%TONE_BUF_LEN) {
+		fwrite(&tonemap[detected_tones[write_tone_index]], sizeof(char), 1, textfile);
 	}
 }
 
@@ -161,6 +179,7 @@ short generate_pulse_sample(void) {
 				}
 			} else if(detected_tones[pulse_tone_index] == 11) { //Look for the termination character
 				//Write to file
+				record_tones_to_file();
 				pulse_state = -1;
 			} else if(pulse_state == 0) { //Waiting for another tone
 				if(detected_tones[pulse_tone_index] == 10) { //Change rate on next command
