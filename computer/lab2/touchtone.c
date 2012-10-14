@@ -15,15 +15,17 @@
 #define INPUT_FILENAME "touchtones.raw"
 
 short DATA_IN[BLOCKSIZE]; //16 bit value
+short buff[BLOCKSIZE];
 
 /* declare the block processing function */
 void process_block(short*, int);
+void process_sample(short);
 void fft(float[], unsigned int);
 int snapfreq(int);
 int abs(int);
-int n = 0;
 int last_tone = -5;
-
+int bufcount = 0;
+int samplecount = 0;
 int main() {
 	FILE *infile;
 	int datacount;
@@ -34,6 +36,7 @@ int main() {
 		printf("fopen for reading failed with %d!\n", errno);
 		return 0;
 	}
+	printf("-1, 0, 1, 5, 1, 4, 3, 9, 8, 2, 7, 2, 6, 2, 5, 1, 0, 6, 3, -2\n");
 
 	//Read in NN chunks
     do {
@@ -41,7 +44,6 @@ int main() {
     	process_block(DATA_IN, datacount);
     } while (datacount == BLOCKSIZE);
 
-    printf("Number of valid blocks: %i\n", n);
     /* Close the input and output files, this also flushes all
     * pending I/O, so that other programs can access the data. */
     fclose(infile);
@@ -49,26 +51,40 @@ int main() {
 
 /* Here is the definition of the block processing function */
 void process_block(short *in, int size) {
-	if(size != BLOCKSIZE) return;
-	n++;
-
 	int i;
-	float fftdata[size*2];
-
 	for(i = 0;i < size;i++) {
-		fftdata[2*i] = in[i];
+		process_sample(in[i]);
+	}
+}
+
+void process_sample(short in) {
+	int i;
+
+	for(i = 0;i < BLOCKSIZE-1;i++) {
+		buff[i] = buff[i+1];
+	}
+
+	buff[BLOCKSIZE-1] = in;
+
+	samplecount++;
+	if(samplecount == 10) samplecount = 0;
+
+	float fftdata[BLOCKSIZE*2];
+
+	for(i = 0;i < BLOCKSIZE;i++) {
+		fftdata[2*i] = buff[i];
 		fftdata[2*i+1] = 0;
 	}
 
 	fft(fftdata, BLOCKSIZE);
 
-	float absfft[size];
+	float absfft[BLOCKSIZE];
 
 	float maxval[2] = {0, 0};
 	int maxfreq[2] = {0, 0};
 
-	for(i = 0;i < size/2;i++) {
-		absfft[i] = sqrt(fftdata[2*i]*fftdata[2*i]+fftdata[2*i+1]*fftdata[2*i+1]);
+	for(i = 0;i < BLOCKSIZE/2;i++) {
+		absfft[i] = (fftdata[2*i]*fftdata[2*i]+fftdata[2*i+1]*fftdata[2*i+1]);
 
 		if(absfft[i] > maxval[1]) {
 			maxval[0] = maxval[1];
@@ -111,13 +127,16 @@ void process_block(short *in, int size) {
 	for(i = 0;i < 12;i++) {
 		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
 			if(last_tone != tones[i][2]) {
-				printf("%i, ", tones[i][2]);
-				last_tone = tones[i][2];
+				if(bufcount > 70) {
+					printf("%i, ", tones[i][2]);
+					last_tone = tones[i][2];
+					bufcount = 0;
+				}
+				bufcount++;
+
 			}
 		}
 	}
-
-	//-1, 0, 1, 5, 1, 4, 3, 9, 8, 2, 7, 2, 6, 2, 5, 1, 0, 6, 3, -2
 
 }
 
@@ -125,7 +144,7 @@ int snapfreq(int bin) {
 	int valid_freq[7] = {697, 770, 852, 941, 1209, 1336, 1477};
 
 	int val = bin*8000/BLOCKSIZE;
-	int thres = 30;
+	int thres = 40;
 	int diff = 8000;
 	int i, snapped;
 
