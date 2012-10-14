@@ -3,7 +3,10 @@
 // Salenikovich, Stepan - 260326129
 // Smith, Severin - 260349085
 
-#ifndef TOUCHTONE_H
-#define TOUCHTONE_H
+#ifndef FFT_H
+#define FFT_H
+
+void fft(float[], unsigned int);
+void fft2(float[], unsigned int);
 
 #endif
