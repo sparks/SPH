@@ -9,7 +9,7 @@
 #include "fft.h"
 #include "touchtone.h"
 
-#define BLOCKSIZE 128  //File chunk read len
+#define FFTSIZE 128  //File chunk read len
 #define INPUT_FILENAME "touchtones.raw"
 #define OUTPUT_FILENAME "pulses.raw"
 #define TEXT_FILENAME "pulserecord.txt" 
@@ -63,11 +63,11 @@ int freq_high_bin[] = {19, 21, 23};
 char tonemap[12] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'};
 
 //Variables for File IO
-short DATA_IN[BLOCKSIZE]; //16 bit values
-short DATA_OUT[BLOCKSIZE];
+short DATA_IN[FFTSIZE]; //16 bit values
+short DATA_OUT[FFTSIZE];
 
 //Program variables
-short buffer[BLOCKSIZE];
+short buffer[FFTSIZE];
 int buffer_index;
 
 #define TONE_BUF_LEN 30
@@ -87,11 +87,11 @@ int tone_len_count = 0;
 int dump = 0;
 #define fftmode 0
 
-int fft_interval = BLOCKSIZE/2;
+int fft_interval = FFTSIZE/2;
 int min_tone_len = 10;
 int freq_snap_thres = 40;
 
-float fft_array[BLOCKSIZE*2+fftmode];
+float fft_array[FFTSIZE*2+fftmode];
 FILE *textfile;
 
 int main() {
@@ -123,17 +123,17 @@ int main() {
 
 	//Read in NN chunks
 	do {
-		datacount = fread(DATA_IN, sizeof(short), BLOCKSIZE, infile);
+		datacount = fread(DATA_IN, sizeof(short), FFTSIZE, infile);
 		process_block(DATA_IN, DATA_OUT, datacount);
     	fwrite(DATA_OUT, sizeof(short), datacount, outfile);
-	} while (datacount == BLOCKSIZE);
+	} while (datacount == FFTSIZE);
 
 	while(pulse_tone_index != tone_index && pulse_state != 0) {
 		int i;
-		for(i = 0;i < BLOCKSIZE;i++) {
+		for(i = 0;i < FFTSIZE;i++) {
 			DATA_OUT[i] = generate_pulse_sample();
 		}
-		fwrite(DATA_OUT, sizeof(short), BLOCKSIZE, outfile);
+		fwrite(DATA_OUT, sizeof(short), FFTSIZE, outfile);
 	}
 
 	if(!dump) printf("\n");
@@ -236,23 +236,23 @@ void process_sample(short in) {
 	buffer[buffer_index] = in;
 
 	buffer_index++;
-	if(buffer_index >= BLOCKSIZE) buffer_index = 0;
+	if(buffer_index >= FFTSIZE) buffer_index = 0;
 
 	sample_count++;
 	if(sample_count < fft_interval) return;
 	sample_count = 0;
 
-	for(i = 0;i < BLOCKSIZE;i++) {
+	for(i = 0;i < FFTSIZE;i++) {
 		tmp = buffer_index+i;
-		if(tmp >= BLOCKSIZE) tmp -= BLOCKSIZE;
+		if(tmp >= FFTSIZE) tmp -= FFTSIZE;
 		fft_array[2*i+fftmode] = buffer[tmp];
 		fft_array[2*i+1+fftmode] = 0;
 	}
 
-	if(fftmode == 1) fft2(fft_array, BLOCKSIZE);
-	else fft(fft_array, BLOCKSIZE);
+	if(fftmode == 1) fft2(fft_array, FFTSIZE);
+	else fft(fft_array, FFTSIZE);
 
-	for(i = 0;i < BLOCKSIZE/2;i++) {
+	for(i = 0;i < FFTSIZE/2;i++) {
 		fft_array[i] = (fft_array[2*i+fftmode]*fft_array[2*i+fftmode]+fft_array[2*i+1+fftmode]*fft_array[2*i+1+fftmode]);
 
 		if(dump) {
@@ -366,8 +366,8 @@ int detect_tone(float absfft[]) {
 	float maxval[2] = {0, 0};
 	int maxfreq[2] = {0, 0};
 
-	//Important only touch BLOCKSIZE/2, bogus data after that
-	for(i = 0;i < BLOCKSIZE/2;i++) {
+	//Important only touch FFTSIZE/2, bogus data after that
+	for(i = 0;i < FFTSIZE/2;i++) {
 		if(absfft[i] > maxval[1]) {
 			maxval[0] = maxval[1];
 			maxfreq[0] = maxfreq[1];
@@ -402,7 +402,7 @@ int detect_tone(float absfft[]) {
 int snapfreq(int bin) {
 	int valid_freq[7] = {697, 770, 852, 941, 1209, 1336, 1477};
 
-	int val = bin*8000/BLOCKSIZE;
+	int val = bin*8000/FFTSIZE;
 	int diff = 8000;
 	int i, snapped;
 
