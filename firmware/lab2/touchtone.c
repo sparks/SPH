@@ -25,11 +25,9 @@ DSK6713_AIC23_CodecHandle hCodec;
 Uint32 left, right;
 Int16 mix, audio_out;
 
-Uint32 casted_audio_out;
-
 volatile Uint8 audio_ready_flag, channel_flag;
 
-int main() {	
+int main() {
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
@@ -61,19 +59,7 @@ int main() {
 
 /* Process sampling function, outputs one filtered sample at a time */
 Int16 process_sample(Int16 x) {
-	int i;
-	float result = 0;
-	// (secondary) fir buffer to allow for seperate blocks
-	in_buf_index = (in_buf_index+1)%FIRLEN;
-
-	in_buf[in_buf_index] = x;
-
-	for(i = 0;i < FIRLEN;i++) {
-		// applys the filter coeficients to the in samples
-		result += remezFIRBP64[i]*(float)in_buf[(in_buf_index+i)%FIRLEN];
-	}
-
-	return (Int16)result;
+	return (Int16)x;
 }
 
 

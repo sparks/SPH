@@ -5,7 +5,7 @@
 ;; INPUT Configuration1.cdb
 
 ;; CONFIGURATION/VERSION INFORMATION
-	.asg "Sun Oct 14 18:41:26 2012", VERS$DATE
+	.asg "Sun Oct 14 19:19:41 2012", VERS$DATE
 
 ;; PROLOGUE
 	.include Configuration1cfg.h62
@@ -603,7 +603,7 @@ DIO$SETOF           .set 00H
 ;;
 ;; HWI_Obj HWI_INT4 (function, monitor, addr, dataType, operation, client, iUseDispatcher, iArg, IntrMask, iCCBitMask)
 	.global HWI_INT4
-	.asg _interruptTest, _function
+	.asg _receive_interrupt, _function
 	.asg "Nothing", _monitor
 	.asg 00H, _addr
 	.asg "unsigned", _dataType

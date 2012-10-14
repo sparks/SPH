@@ -78,6 +78,7 @@
 	.global	_DIO_cbDynamicFxns
 	.global	_DIO_tskDynamicFxns
 	.global	_DIO_init
+	.global	_receive_interrupt
 
 ;; MODULE PARAMETERS
 GBL$                .set 1
