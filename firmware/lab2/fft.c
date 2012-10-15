@@ -6,20 +6,35 @@
 #include "fft.h"
 #include <math.h>
 
+//This define simply swaps two values in memory who's type matches tempr (assuming tempr is defined in the current scope)
 #define SWAP(a, b) tempr=(a);(a)=(b);(b)=tempr
 
-/** Modified implementation from NR book, indexing changed, some variable names changes */
-//Replaces data[1..2 * nn] by its discrete Fourier transform.
-//data is a complex array of length nn or, equivalently, a real array of length 2 * nn. nn MUST
-//be an integer power of 2 (this is not checked for!).
+/** 
+* Modified implementation of the FFT presented in the well known "Numerical Receipes in C Book"
+*  -The indexing changed has been changes so that the array is index from [0 -> 2*nn-1] instead of [1 -> 2*nn]
+*  -Some variable names have been changed for clarity
+*  -The use of a trigonometric substitute for cos was replaced with a simple cos
+*  -The NR book defines DFT with exp(+jnk), here we use exp(-jnk)
+*  -There is no longer a controllable sign bit to allow for inverse FFT computation
+* The function does and in place radixx-2 FFT. The input array must be of length 2*nn where nn MUST be a power of 2.
+* This is not check for in the code. The array should be interleaved real and complex data, e.g. data[0] is real data[1] is complex
+* data[2n] is read, data[2n+1] is complex. It is also important to note that the twiddle in this FFT are computed on the fly.
+* However an absolute minimum number of twiddles are computed since this implementation uses the symmetry of the even cuts of the unit
+* circle to avoid all redundant calculation.
+*
+* \param data the array of interleaved real/complex input data, this data will be replaced with the interleaved complex FFT values.
+* \param nn the size of the FFT, must be a power of 2. The data array must have length 2*nn.
+*/
 void fft(float data[], unsigned int nn) {
-	unsigned long n, dftlen, m, j, istep, i;
-	double wtemp, w_real_cur, w_real_incr, w_imag_incr, w_imag_cur, theta; //Double precision for the trigonometric recurrences.
+	//Note that many variables are reused for a number of purpose: i, j, m
+	unsigned long dftlen, n, m, i, j, istep;
+	double wtemp, w_real_cur, w_imag_cur, w_real_incr, w_imag_incr, theta; //Double precision for the trigonometric recurrences.
 	float tempr, tempi;
-	n = nn << 1; //nn * 2 since we are using a double spaced array for real and complex
+
+	n = nn << 1; //nn * 2 since we are using a double spaced array for real and complex n will hold the real array length
 	j = 0; //Align to 0 boudary
 
-	//This is the bit-reversal algorithm
+	//This is the main section of the bit-reversal algorithm
 	for (i = 0;i < n;i += 2) { //Increments of 2 because of real/complex double spacing
 		if (j > i) { //If j > i we haven't already made the swap, so swap
 			//Exchange the two complex numbers.
