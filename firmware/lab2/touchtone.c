@@ -28,13 +28,52 @@
 #define THR_LOW_2H 2.0         // min ratio of low freq to its 2nd harmonic
 #define THR_HIGH_2H 10.0        // min ratio of high freq to its 2nd harmonic
 
+/* processes a new input sample:
+ * adds the new sample to the buffer;
+ * if there are enough new samples, performs fft on the samples;
+ * then perfoms tone detection on the result of the fft,
+ * validates the results and stacks any valid digits detected.
+ */
 void process_sample(Int16);
+
+/* detects tones from input absolute value fft,
+ * returns a valid digit, or else an error:
+ * works by performing several threshold checks;
+ * currently is not used.
+ */
 int detect_tone(float*);
+
+/* generates pulse to be output:
+ */
 Int16 generate_pulse_sample(void);
+
+/* records the detected digits to an output file:
+ */
 void record_tones_to_file(void);
+
+/* computes the absolute value of the fft,
+ * takes the complex fft as input,
+ * returns absolute value fft array:
+ */
 int absolute(int);
+
+/* detects tones from input absolute value fft array,
+ * returns a valid digit, or else an error:
+ * works by simply detecting the two highest value frequency bins,
+ * tries to snap the those frequencies to the possible valid tone frequencies,
+ * checks if this results in a valid tone combo,
+ * and outputs a valid digit if it finds a valid tone combo.
+ */
 int detect_tone_old(float*);
 
+/* detects tones from input absolute value fft array,
+ * returns a valid digit, or else an error:
+ * works the same way as the old max bins method,
+ * adds the signal threshold and twist ratio check.
+ */
+int detect_tone_frankenstein(float*);
+
+/* interrupts */
 void receive_interrupt(void);
 void transmit_interrupt(void);
 
