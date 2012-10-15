@@ -7,6 +7,5 @@
 #define FFT_H
 
 void fft(float[], unsigned int);
-void fft2(float[], unsigned int);
 
 #endif
