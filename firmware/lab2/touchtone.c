@@ -135,6 +135,10 @@ Int16 mix = 0, audio_out = 0;
 // channel flag is used to switch between buffering left and right channels
 volatile Uint8 input_ready = 0, output_ready = 0, channel_flag = 0;
 
+//#define FFT_BUFF_LEN 100
+//far float fft_buff[FFT_BUFF_LEN][FFTSIZE/2];
+//int fft_buff_index = 0;
+
 /**
  * main method
  * contains main run loop
@@ -190,6 +194,19 @@ void record_tones_to_file(void) {
 	}
 	// flushes write buffer to file
 	fflush(textfile);
+}
+
+void record_fft_buff_to_file(void) {
+/*	int i,j;
+	for(i = 0;i < FFT_BUFF_LEN;i++) {
+		for(j = 0;j < FFTSIZE/2;j++) {
+			if(j != 0) fprintf(textfile, ", ");
+			fprintf(textfile, "%f", fft_buff[i][j]);
+		}
+		fprintf(textfile, "\n");
+	}
+	fflush(textfile);
+	fft_buff_index = 0;*/
 }
 
 /**
@@ -303,7 +320,12 @@ void process_sample(Int16 x) {
 
 	for(i = 0;i < FFTSIZE/2;i++) { //Compute the magnitude squared of the FFT (only below nyquist rate)
 		fft_array[i] = (fft_array[2*i]*fft_array[2*i]+fft_array[2*i+1]*fft_array[2*i+1]); //reuse the same array to save memory
+	//	fft_buff[fft_buff_index][i] = fft_array[i];
 	}
+//	fft_buff_index++;
+//	if(fft_buff_index == FFT_BUFF_LEN) {
+//		record_fft_buff_to_file();
+//	}
 
 	
 	//Touch tone detection
