@@ -32,6 +32,8 @@ void process_sample(Int16);
 int detect_tone(float*);
 Int16 generate_pulse_sample(void);
 void record_tones_to_file(void);
+int abs(int);
+int detect_tone_old(float*);
 
 void receive_interrupt(void);
 void transmit_interrupt(void);
@@ -403,3 +405,69 @@ void transmit_interrupt(void) {
 	if(output_ready <= 1) output_ready++;
 }
 
+
+int detect_tone_old(float absfft[]) {
+	int i;
+
+	float maxval[2] = {0, 0};
+	int maxfreq[2] = {0, 0};
+
+	//Important only touch FFTSIZE/2, bogus data after that
+	for(i = 0;i < FFTSIZE/2;i++) {
+		if(absfft[i] > maxval[1]) {
+			maxval[0] = maxval[1];
+			maxfreq[0] = maxfreq[1];
+
+			maxval[1] = absfft[i];
+			maxfreq[1] = i;
+		} else if(absfft[i] > maxval[0]) {
+			maxval[0] = absfft[i];
+			maxfreq[0] = i;
+		}
+	}
+
+	maxfreq[0] = snapfreq(maxfreq[0]);
+	maxfreq[1] = snapfreq(maxfreq[1]);
+
+	if(maxfreq[0] == -1 || maxfreq[1] == -1) return -1; //Error value
+
+	if(maxfreq[0] > maxfreq[1]) {
+		int tmp = maxfreq[0];
+		maxfreq[0] = maxfreq[1];
+		maxfreq[1] = tmp;
+	}
+
+	for(i = 0;i < 12;i++) {
+		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
+			return tones[i][2];
+		}
+	}
+	return -1; //Random error value
+}
+
+int snapfreq(int bin) {
+	int valid_freq[7] = {697, 770, 852, 941, 1209, 1336, 1477};
+
+	int val = bin*8000/FFTSIZE;
+	int diff = 8000;
+	int i, snapped;
+
+	for(i = 0;i < 7;i++) {
+		if(abs(valid_freq[i]-val) < diff) {
+			diff = abs(valid_freq[i]-val);
+			snapped = valid_freq[i];
+		}
+	}
+
+	if(diff <= freq_snap_thres) {
+		return snapped;
+	} else {
+		return -1;
+	}
+
+}
+
+int abs(int val) {
+	if(val < 0) return -val;
+	else return val;
+}
