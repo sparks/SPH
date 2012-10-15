@@ -20,16 +20,22 @@ with open('output2', 'rb') as file:
 		frames2.append(frame)
 
 ion()
-ax = gca()
 
 subplot(2,1,1)
 line1, = plot(frames1[0])
+ax1 = gca()
+
 subplot(2,1,2)
 line2, = plot(frames2[0])
+ax2 = gca()
+
 
 for i in range(len(frames1)):
 	line1.set_ydata(frames1[i])
 	line2.set_ydata(frames2[i])
-	ax.relim()
-	ax.autoscale_view()
+	subplot(2,1,1)
+	ax1.relim()
+	ax1.autoscale_view()
+	ax2.relim()
+	ax2.autoscale_view()
 	draw()
