@@ -6,31 +6,34 @@
 #include <dsk6713.h>
 #include <dsk6713_aic23.h>
 #include <stdio.h>
+#include <errno.h>
 
 #include "fft.h"
 #include "touchtone.h"
 
 #define FFTSIZE 128  //File chunk read len
-#define TEXT_FILENAME "pulserecord.txt" 
+#define TEXT_FILENAME "pulserecord2.txt" 
 
 #define FREQS_LOW 4     //number of valid low freqs to check
 #define FREQS_HIGH 3    // number of valid high freqs to check
 
 // threshold
-#define THR_SIGNAL 50000.0      // sum of the magnitudes must be above this
+#define THR_SIGNAL 100000.0      // sum of the magnitudes must be above this
 #define THR_REVERSE_TWIST 2.0   // max ratio of lower to higher freq
 #define THR_STD_TWIST  0.5      // max ratio of higher to lower freq
                                 // to avoid division, this is actually the
                                 // inverse ratio (1/2.0)
-#define THR_LOW_RELATIVE 2.0    // min ratio of highest mag low freq to others
-#define THR_HIGH_RELATIVE 2.0   // min ratio of highest mag high freq to others
-#define THR_LOW_2H 10.0         // min ratio of low freq to its 2nd harmonic
+#define THR_LOW_RELATIVE 6.0    // min ratio of highest mag low freq to others
+#define THR_HIGH_RELATIVE 6.0   // min ratio of highest mag high freq to others
+#define THR_LOW_2H 2.0         // min ratio of low freq to its 2nd harmonic
 #define THR_HIGH_2H 10.0        // min ratio of high freq to its 2nd harmonic
 
 void process_sample(Int16);
 int detect_tone(float*);
 Int16 generate_pulse_sample(void);
 void record_tones_to_file(void);
+int abs(int);
+int detect_tone_old(float*);
 
 void receive_interrupt(void);
 void transmit_interrupt(void);
@@ -65,44 +68,70 @@ int tones[12][3] = {
 	{941, 1477, 11}
 };
 
-// valid bins for 128 length fft
 int freq_low[] = {697, 770, 852, 941};
 int freq_high[] = {1209, 1336, 1477};
+
+// valid bins for 128 length fft
+/*
 int freq_low_bin[] = {11, 12, 14, 15};
 int freq_high_bin[] = {19, 21, 23};
 int freq_low_harmonic_bin[] = {22, 24, 26, 30};
 int freq_high_harmonic_bin[] = { 38, 43, 47};
+*/
+
+// valid bins for 256 length fft
+/*
+int freq_low_bin[] = {22, 24, 28, 30};
+int freq_high_bin[] = {38, 42, 47};
+int freq_low_harmonic_bin[] = {44, 49, 54, 60};
+int freq_high_harmonic_bin[] = { 77, 85, 94};
+*/
+
+// valid bins for 512 length fft
+int freq_low_bin[] = {44, 49, 54, 60};
+int freq_high_bin[] = {77, 85, 93};
+int freq_low_harmonic_bin[] = {89, 98, 109, 120};
+int freq_high_harmonic_bin[] = { 154, 171, 189};
 
 char tonemap[12] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'};
 
 //Program variables
 Int16 buffer[FFTSIZE];
-int buffer_index;
+int buffer_index = 0;
 
 #define TONE_BUF_LEN 30
-int detected_tones[TONE_BUF_LEN];
-int write_tone_index, prev_tone_index, tone_index, gap_flag = 1;
+int detected_tones[TONE_BUF_LEN] = {
+	-1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1,
+	-1, -1, -1, -1, -1
+}
+;
+int write_tone_index = 0, prev_tone_index = 0, tone_index = 0, gap_flag = 1;
 
 int pulse_up = 8;
 int pulse_len = 800;
 
-int pulse_state = -1, pulse_tone_index;
-int pulse_sample_index, pulse_tone_count, pulse_tone_count_max;
-
+int pulse_state = -1, pulse_tone_index = 0;
+int pulse_sample_index = 0, pulse_tone_count = 0;
+int pulse_tone_count_max = 0;
 int sample_count = 0;
 int tone_len_count = 0;
 
 //Controllable detection params
-int fft_interval = FFTSIZE/2;
-int min_tone_len = 10;
+int fft_interval = FFTSIZE;
+int min_tone_len = 2;
+int freq_snap_thres = 40;
 
-float fft_array[FFTSIZE*2+fftmode];
+float fft_array[FFTSIZE*2];
 FILE *textfile;
 
-Uint32 left, right;
-Int16 mix, audio_out;
+Uint32 left = 0, right = 0;
+Int16 mix = 0, audio_out = 0;
 
-volatile Uint8 input_ready, output_ready, channel_flag;
+volatile Uint8 input_ready = 0, output_ready = 0, channel_flag = 0;
 
 int main() {
 	DSK6713_init();
@@ -112,9 +141,10 @@ int main() {
     /* Open the output file and quit if fail */
 	textfile = fopen(TEXT_FILENAME,"wb");
 	if (!textfile) {
-		printf("fopen for writing failed with %d!\n", errno);
+		//printf("fopen for writing failed with %d!\n", errno);
 		return 0;
 	}
+	
 
 	IRQ_globalEnable();
 	IRQ_enable(IRQ_EVT_RINT1);
@@ -127,11 +157,12 @@ int main() {
 	while(1) {
 		if(input_ready) {
 			process_sample(mix);
-			generate_pulse_sample();
 			input_ready = 0;
 		}
-		if(output_ready) {
+		if(output_ready > 1) {
 			audio_out = generate_pulse_sample();
+			//audio_out = mix;
+			output_ready = 0;
 		}
 	};
 
@@ -172,7 +203,7 @@ Int16 generate_pulse_sample(void) {
 				if(detected_tones[pulse_tone_index] == 10) { //Change rate on next command
 					pulse_state = 2;
 					// printf("Got a * at index %i\n", pulse_tone_index);
-				} else if(detected_tones[pulse_tone_index] < 10) { //Start a tone
+				} else if(detected_tones[pulse_tone_index] < 10 && detected_tones[pulse_tone_index] >= 0) { //Start a tone
 					pulse_state = 1;
 
 					pulse_tone_count_max = detected_tones[pulse_tone_index];
@@ -191,7 +222,8 @@ Int16 generate_pulse_sample(void) {
 			}
 			//Increment tone
 			pulse_tone_index++;
-			// printf("index is %i %i\n", tone_index, pulse_tone_index);
+			//printf("");
+			//printf("index is %i %i\n", tone_index, pulse_tone_index);
 			if(pulse_tone_index >= TONE_BUF_LEN) pulse_tone_index -= TONE_BUF_LEN;
 		}
 	} 
@@ -220,7 +252,7 @@ Int16 generate_pulse_sample(void) {
 void process_sample(Int16 x) {
 	int i, tmp;
 
-	buffer[buffer_index] = in;
+	buffer[buffer_index] = x;
 
 	buffer_index++;
 	if(buffer_index >= FFTSIZE) buffer_index = 0;
@@ -232,19 +264,21 @@ void process_sample(Int16 x) {
 	for(i = 0;i < FFTSIZE;i++) {
 		tmp = buffer_index+i;
 		if(tmp >= FFTSIZE) tmp -= FFTSIZE;
-		fft_array[2*i+fftmode] = buffer[tmp];
-		fft_array[2*i+1+fftmode] = 0;
+		fft_array[2*i] = buffer[tmp];
+		fft_array[2*i+1] = 0;
 	}
 
-	if(fftmode == 1) fft2(fft_array, FFTSIZE);
-	else fft(fft_array, FFTSIZE);
+	fft(fft_array, FFTSIZE);
 
 	for(i = 0;i < FFTSIZE/2;i++) {
-		fft_array[i] = (fft_array[2*i+fftmode]*fft_array[2*i+fftmode]+fft_array[2*i+1+fftmode]*fft_array[2*i+1+fftmode]);
+		fft_array[i] = (fft_array[2*i]*fft_array[2*i]+fft_array[2*i+1]*fft_array[2*i+1]);
+		//printf("%f, ", fft_array[i]);
 	}
 
+	//printf("\n");
+	
 	//Touch tone detection
-	tmp = detect_tone_new(fft_array);
+	tmp = detect_tone_old(fft_array);
 	if(tmp < 0) gap_flag = 1;
 
 	prev_tone_index = tone_index-1;
@@ -301,8 +335,10 @@ int detect_tone(float absfft[]) {
 	    // check sum threshold
 			if(maxval[0] + maxval[1] > THR_SIGNAL){
                 // check twist ratios
+				/*
 				twist_ratio = maxval[0]/maxval[1];
 				if(twist_ratio < THR_REVERSE_TWIST && twist_ratio > THR_STD_TWIST){
+					
 					// check ratio relative to the other valid frequencies
 					for(j = 0; j < FREQS_LOW; j++){
 						if(j!=maxfreqbin[0] && maxval[0]/absfft[freq_low_bin[j]] < THR_LOW_RELATIVE){
@@ -337,6 +373,8 @@ int detect_tone(float absfft[]) {
                     //printf("failed twist ratio\n");
 					return -3;
 				}
+				*/
+				return tones[i][2];
 			}else{
                 // failed sum threshold
                 //printf("failed sum threshold\n");
@@ -364,6 +402,72 @@ void receive_interrupt(void) {
 
 void transmit_interrupt(void) {
 	DSK6713_AIC23_write(hCodec, audio_out & 0xFFFF);
-	output_ready = 1;
+	if(output_ready <= 1) output_ready++;
 }
 
+
+int detect_tone_old(float absfft[]) {
+	int i;
+
+	float maxval[2] = {0, 0};
+	int maxfreq[2] = {0, 0};
+
+	//Important only touch FFTSIZE/2, bogus data after that
+	for(i = 0;i < FFTSIZE/2;i++) {
+		if(absfft[i] > maxval[1]) {
+			maxval[0] = maxval[1];
+			maxfreq[0] = maxfreq[1];
+
+			maxval[1] = absfft[i];
+			maxfreq[1] = i;
+		} else if(absfft[i] > maxval[0]) {
+			maxval[0] = absfft[i];
+			maxfreq[0] = i;
+		}
+	}
+
+	maxfreq[0] = snapfreq(maxfreq[0]);
+	maxfreq[1] = snapfreq(maxfreq[1]);
+
+	if(maxfreq[0] == -1 || maxfreq[1] == -1) return -1; //Error value
+
+	if(maxfreq[0] > maxfreq[1]) {
+		int tmp = maxfreq[0];
+		maxfreq[0] = maxfreq[1];
+		maxfreq[1] = tmp;
+	}
+
+	for(i = 0;i < 12;i++) {
+		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
+			return tones[i][2];
+		}
+	}
+	return -1; //Random error value
+}
+
+int snapfreq(int bin) {
+	int valid_freq[7] = {697, 770, 852, 941, 1209, 1336, 1477};
+
+	int val = bin*8000/FFTSIZE;
+	int diff = 8000;
+	int i, snapped;
+
+	for(i = 0;i < 7;i++) {
+		if(abs(valid_freq[i]-val) < diff) {
+			diff = abs(valid_freq[i]-val);
+			snapped = valid_freq[i];
+		}
+	}
+
+	if(diff <= freq_snap_thres) {
+		return snapped;
+	} else {
+		return -1;
+	}
+
+}
+
+int abs(int val) {
+	if(val < 0) return -val;
+	else return val;
+}
