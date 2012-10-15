@@ -242,6 +242,7 @@ Int16 generate_pulse_sample(void) {
 				//Write to file
 				record_tones_to_file();
 				pulse_state = -1;
+				pulse_len = 800;
 			} else if(pulse_state == 0) { //Waiting for another tone
 				if(detected_tones[pulse_tone_index] == 10) { //Change rate on next command
 					pulse_state = 2;
@@ -339,6 +340,13 @@ void process_sample(Int16 x) {
 			if(tone_len_count >= min_tone_len) {
 				detected_tones[tone_index] = tmp;
 				tone_index++;
+				if(tone_index >= TONE_BUF_LEN) tone_index -= TONE_BUF_LEN;
+				if(tone_index == pulse_tone_index) {
+					pulse_tone_index++;
+					if(pulse_tone_index >= TONE_BUF_LEN) {
+						pulse_tone_index -= TONE_BUF_LEN;
+					}
+				}
 				tone_len_count = 0;
 				gap_flag = 0;
 				gap_len_count = 0;
