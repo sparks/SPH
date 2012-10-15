@@ -56,6 +56,7 @@ int tones[12][3] = {
 	{941, 1477, 11}
 };
 
+// note: these are only used in the TI thresholds detection function
 int freq_low[] = {697, 770, 852, 941};
 int freq_high[] = {1209, 1336, 1477};
 
@@ -97,7 +98,7 @@ int detected_tones[TONE_BUF_LEN] = {
 	-1, -1, -1, -1, -1
 }
 ;
-int write_tone_index = 0, prev_tone_index = 0, tone_index = 0, gap_flag = 1;
+int write_tone_index = 0, tone_index = 0, gap_flag = 1;
 
 int pulse_up = 8;
 int pulse_len = 800;
@@ -108,7 +109,7 @@ int pulse_tone_count_max = 0;
 int sample_count = 0;
 int tone_len_count = 0, gap_len_count = 0;
 
-//Controllable detection params
+//Controllable detection params
 int fft_interval = FFTSIZE;
 int min_gap_len = 0;
 int min_tone_len = 2;
@@ -182,40 +183,50 @@ void record_tones_to_file(void) {
  * generates pulse to be output:
  */
 Int16 generate_pulse_sample(void) {
-	if(pulse_state != 1) {
-		if(pulse_tone_index == tone_index) {
-			return 0;
-		} if(pulse_state == 3) {
-			pulse_sample_index++;
-			if(pulse_sample_index > 4000) {
+	/**
+	* Possible pusle_state values
+	* -1 : Waiting for the first * term, rejecting all other input
+	* 0 : Doing nothing, available to read and process another tone
+	* 1 : Playing a tone
+	* 2 : Last tone was a * indicating a speed change. Waiting for speed change tone
+	* 3 : Play a pause between tones
+	*/
+	if(pulse_state != 1) { //If no playing
+		if(pulse_tone_index == tone_index) { //No available tones
+			return 0; //Output nothing
+		} if(pulse_state == 3) { //Currently playing a pause
+			pulse_sample_index++; //Increment pause counter
+			if(pulse_sample_index > 4000) { //If paused long enough leave pause state
 				pulse_state = 0;
 				pulse_sample_index = 0;
 			}
-		} else {
+		} else { //We have available tones and are not in state 1 or state 3 (e.g. not currently in playback)
 			//We will read a tone
 			if(pulse_state == -1) { //Look for the first * character
-				if(detected_tones[pulse_tone_index] == 10) {
+				if(detected_tones[pulse_tone_index] == 10) { //If found go to neutral state
 					pulse_state = 0;
 				}
 			} else if(detected_tones[pulse_tone_index] == 11) { //Look for the termination character
 				//Write to file
 				record_tones_to_file();
-				pulse_state = -1;
-				pulse_len = 800;
+				pulse_state = -1; //Reset to startup state
+				pulse_len = 800; //Reset to default pulse rate
 			} else if(pulse_state == 0) { //Waiting for another tone
-				if(detected_tones[pulse_tone_index] == 10) { //Change rate on next command
+				if(detected_tones[pulse_tone_index] == 10) { //Got * in command change rate on next command
 					pulse_state = 2;
 				} else if(detected_tones[pulse_tone_index] < 10 && detected_tones[pulse_tone_index] >= 0) { //Start a tone
-					pulse_state = 1;
+					pulse_state = 1; //Playback state
 
-					pulse_tone_count_max = detected_tones[pulse_tone_index];
+					pulse_tone_count_max = detected_tones[pulse_tone_index]; //Set the number of pulses to be output
 					if(pulse_tone_count_max == 0) pulse_tone_count_max = 10; //Handle 0 -> 10 mapping
 
+					//Clear playback variables
 					pulse_tone_count = 0;
 					pulse_sample_index = 0;
 				}
 			} else if(pulse_state == 2) { //We are waiting for a rate change
 				if(detected_tones[pulse_tone_index] < 10) { //If it's not a number dump it
+					//Set the new pulse len
 					if(detected_tones[pulse_tone_index] == 0) pulse_len = 800; //Handle 0 -> 10 mapping, also the default speed
 					else pulse_len = 8000/detected_tones[pulse_tone_index];
 				}
@@ -227,17 +238,18 @@ Int16 generate_pulse_sample(void) {
 		}
 	} 
 
-	if(pulse_state == 1) {
-		if(pulse_sample_index < 8) {
+	if(pulse_state == 1) { //We are in playback
+		if(pulse_sample_index < 8) { //In the "on" part of the period
 			pulse_sample_index++;
 			return 32767;
-		} else if(pulse_sample_index < pulse_len) {
+		} else if(pulse_sample_index < pulse_len) { //In the "off" part of the period
 			pulse_sample_index++;
 			return 0;
 		} else {
-			pulse_tone_count++;
+			//Period over
+			pulse_tone_count++; //Increment count for digit
 			pulse_sample_index = 0;
-			if(pulse_tone_count >= pulse_tone_count_max) {
+			if(pulse_tone_count >= pulse_tone_count_max) { //If we are done go to pause state
 				pulse_tone_count = 0;
 				pulse_state = 3;
 				return 0;
@@ -245,7 +257,7 @@ Int16 generate_pulse_sample(void) {
 		}
 	}
 
-	return 0;
+	return 0; //Fallthrough default
 }
 
 /**
@@ -258,55 +270,54 @@ Int16 generate_pulse_sample(void) {
 void process_sample(Int16 x) {
 	int i, tmp;
 
-	buffer[buffer_index] = x;
+	buffer[buffer_index] = x; //Buffer input in a circular (not harware) buffer
 
 	buffer_index++;
 	if(buffer_index >= FFTSIZE) buffer_index = 0;
 
 	sample_count++;
-	if(sample_count < fft_interval) return;
+	if(sample_count < fft_interval) return; //Only compute the fft every fft_interval samples
 	sample_count = 0;
 
-	for(i = 0;i < FFTSIZE;i++) {
+	for(i = 0;i < FFTSIZE;i++) { //Copy data into the interleaved real/complex fft array
 		tmp = buffer_index+i;
 		if(tmp >= FFTSIZE) tmp -= FFTSIZE;
 		fft_array[2*i] = buffer[tmp];
 		fft_array[2*i+1] = 0;
 	}
 
-	fft(fft_array, FFTSIZE);
+	fft(fft_array, FFTSIZE); //Perform FFT
 
-	for(i = 0;i < FFTSIZE/2;i++) {
-		fft_array[i] = (fft_array[2*i]*fft_array[2*i]+fft_array[2*i+1]*fft_array[2*i+1]);
+	for(i = 0;i < FFTSIZE/2;i++) { //Compute the magnitude squared of the FFT (only below nyquist rate)
+		fft_array[i] = (fft_array[2*i]*fft_array[2*i]+fft_array[2*i+1]*fft_array[2*i+1]); //reuse the same array to save memory
 	}
 
 	
 	//Touch tone detection
 	tmp = detect_tone(fft_array);
-	if(tmp < 0) {
-		if(gap_len_count >= min_gap_len) {
-			gap_flag = 1;
+
+	if(tmp < 0) { //If negative we don't have a valid tone
+		if(gap_len_count >= min_gap_len) { //Confirm the gap over min_gap_len FFT iterations
+			gap_flag = 1; //Set a flag for the gap
 		} else {
-			gap_len_count = 0;
+			gap_len_count++;
 		}
 	}
 
-	prev_tone_index = tone_index-1;
-	if(prev_tone_index < 0) prev_tone_index += TONE_BUF_LEN;
-
 	//Rough stack process thing
-	if(gap_flag) {
-		if(tmp >= 0) {
-			if(tone_len_count >= min_tone_len) {
-				detected_tones[tone_index] = tmp;
-				tone_index++;
-				if(tone_index >= TONE_BUF_LEN) tone_index -= TONE_BUF_LEN;
-				if(tone_index == pulse_tone_index) {
+	if(gap_flag) { //If preceeded by a gap
+		if(tmp >= 0) { //And we have a valid tone
+			if(tone_len_count >= min_tone_len) { //Confirm the tone over min_tone_len FFT iterations
+				detected_tones[tone_index] = tmp; //Add tone to stack
+				tone_index++; //Increment stack
+				if(tone_index >= TONE_BUF_LEN) tone_index -= TONE_BUF_LEN; //Modulo
+				if(tone_index == pulse_tone_index) { //Handle edge cases for wrap around
 					pulse_tone_index++;
 					if(pulse_tone_index >= TONE_BUF_LEN) {
 						pulse_tone_index -= TONE_BUF_LEN;
 					}
 				}
+				//Reset variables
 				tone_len_count = 0;
 				gap_flag = 0;
 				gap_len_count = 0;
@@ -335,7 +346,7 @@ int detect_tone(float absfft[]){
 	int maxfreq[2] = {0, 0};
 
 	//Important only touch FFTSIZE/2, bogus data after that
-	for(i = 0;i < FFTSIZE/2;i++) {
+	for(i = 0;i < FFTSIZE/2;i++) { //Find highest FFT bins
 		if(absfft[i] > maxval[1]) {
 			maxval[0] = maxval[1];
 			maxfreq[0] = maxfreq[1];
@@ -348,17 +359,21 @@ int detect_tone(float absfft[]){
 		}
 	}
 
+ 	//Snap to a valid frequency if we are within the snap threshold otherwise we will get -1
 	maxfreq[0] = snapfreq(maxfreq[0]);
 	maxfreq[1] = snapfreq(maxfreq[1]);
 
 	if(maxfreq[0] == -1 || maxfreq[1] == -1) return -1; //Error value
+	
+	//We have two valid bins
 
-	if(maxfreq[0] > maxfreq[1]) {
+	if(maxfreq[0] > maxfreq[1]) { //Sort
 		int tmp = maxfreq[0];
 		maxfreq[0] = maxfreq[1];
 		maxfreq[1] = tmp;
 	}
 
+	//Perform final checks return error or tone result
 	for(i = 0;i < 12;i++) {
 		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
 			// check signal threshold
@@ -404,23 +419,23 @@ void transmit_interrupt(void) {
  * returns snapped freq on success; -1 on failure
  */
 int snapfreq(int bin) {
-	int valid_freq[7] = {697, 770, 852, 941, 1209, 1336, 1477};
+	int valid_freq[7] = {697, 770, 852, 941, 1209, 1336, 1477}; //Valid frequencies
 
-	int val = bin*8000/FFTSIZE;
-	int diff = 8000;
+	int val = bin*8000/FFTSIZE; //convert our bin to frequency via sampling rate
+	int diff = 4000; //Maximum possible diff value
 	int i, snapped;
 
-	for(i = 0;i < 7;i++) {
-		if(absolute(valid_freq[i]-val) < diff) {
+	for(i = 0;i < 7;i++) { //For each valid tone
+		if(absolute(valid_freq[i]-val) < diff) { //Look for the closest
 			diff = absolute(valid_freq[i]-val);
 			snapped = valid_freq[i];
 		}
 	}
 
-	if(diff <= freq_snap_thres) {
+	if(diff <= freq_snap_thres) { //If closest valid frequency is within freq_snap_thres return the valid snapped frequency
 		return snapped;
 	} else {
-		return -1;
+		return -1; //Otherwise return error code
 	}
 
 }
