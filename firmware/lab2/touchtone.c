@@ -118,10 +118,11 @@ int pulse_state = -1, pulse_tone_index = 0;
 int pulse_sample_index = 0, pulse_tone_count = 0;
 int pulse_tone_count_max = 0;
 int sample_count = 0;
-int tone_len_count = 0;
+int tone_len_count = 0, gap_len_count = 0;
 
-//Controllable detection params
+//Controllable detection params
 int fft_interval = FFTSIZE;
+int min_gap_len = 0;
 int min_tone_len = 2;
 int freq_snap_thres = 40;
 
@@ -281,8 +282,14 @@ void process_sample(Int16 x) {
 	//printf("\n");
 	
 	//Touch tone detection
-	tmp = detect_tone_old(fft_array);
-	if(tmp < 0) gap_flag = 1;
+	tmp = detect_tone_frankenstein(fft_array);
+	if(tmp < 0) {
+		if(gap_len_count >= min_gap_len) {
+			gap_flag = 1;
+		} else {
+			gap_len_count = 0;
+		}
+	}
 
 	prev_tone_index = tone_index-1;
 	if(prev_tone_index < 0) prev_tone_index += TONE_BUF_LEN;
@@ -295,7 +302,7 @@ void process_sample(Int16 x) {
 				tone_index++;
 				tone_len_count = 0;
 				gap_flag = 0;
-
+				gap_len_count = 0;
 				//printf("%c, ", tonemap[tmp]);
 			} else {
 				tone_len_count++;
