@@ -181,7 +181,6 @@ int main() {
     /* Open the output file and quit if fail */
 	textfile = fopen(TEXT_FILENAME,"wb");
 	if (!textfile) {
-		//printf("fopen for writing failed with %d!\n", errno);
 		return 0;
 	}
 
@@ -214,7 +213,6 @@ int main() {
 
 void record_tones_to_file(void) {
 	for(;write_tone_index != (pulse_tone_index+1)%TONE_BUF_LEN;write_tone_index = (write_tone_index+1)%TONE_BUF_LEN) {
-	//	printf("%c", tonemap[detected_tones[write_tone_index]]);
 		fwrite(&tonemap[detected_tones[write_tone_index]], sizeof(char), 1, textfile);
 	}
 //	puts("\n");
@@ -246,7 +244,6 @@ Int16 generate_pulse_sample(void) {
 			} else if(pulse_state == 0) { //Waiting for another tone
 				if(detected_tones[pulse_tone_index] == 10) { //Change rate on next command
 					pulse_state = 2;
-					// printf("Got a * at index %i\n", pulse_tone_index);
 				} else if(detected_tones[pulse_tone_index] < 10 && detected_tones[pulse_tone_index] >= 0) { //Start a tone
 					pulse_state = 1;
 
@@ -260,14 +257,11 @@ Int16 generate_pulse_sample(void) {
 				if(detected_tones[pulse_tone_index] < 10) { //If it's not a number dump it
 					if(detected_tones[pulse_tone_index] == 0) pulse_len = 800; //Handle 0 -> 10 mapping, also the default speed
 					else pulse_len = 8000/detected_tones[pulse_tone_index];
-					// printf("\nTone was %i at index %i New pulse_len: %i\n", detected_tones[pulse_tone_index], pulse_tone_index, pulse_len);
 				}
 				pulse_state = 0; //Regardless move to next default state
 			}
 			//Increment tone
 			pulse_tone_index++;
-			//printf("");
-			//printf("index is %i %i\n", tone_index, pulse_tone_index);
 			if(pulse_tone_index >= TONE_BUF_LEN) pulse_tone_index -= TONE_BUF_LEN;
 		}
 	} 
@@ -316,10 +310,8 @@ void process_sample(Int16 x) {
 
 	for(i = 0;i < FFTSIZE/2;i++) {
 		fft_array[i] = (fft_array[2*i]*fft_array[2*i]+fft_array[2*i+1]*fft_array[2*i+1]);
-		//printf("%f, ", fft_array[i]);
 	}
 
-	//printf("\n");
 	
 	//Touch tone detection
 	tmp = detect_tone_frankenstein(fft_array);
@@ -350,7 +342,6 @@ void process_sample(Int16 x) {
 				tone_len_count = 0;
 				gap_flag = 0;
 				gap_len_count = 0;
-				//printf("%c, ", tonemap[tmp]);
 			} else {
 				tone_len_count++;
 			}
@@ -400,14 +391,12 @@ int detect_tone(float absfft[]) {
 					for(j = 0; j < FREQS_LOW; j++){
 						if(j!=maxfreqbin[0] && maxval[0]/absfft[freq_low_bin[j]] < THR_LOW_RELATIVE){
 							//failed low freq relative ratio threshold
-							//printf("failed low freq relative ratio\n");
 							return -4;
 						}
 					}
 					for(j=0; j<FREQS_HIGH; j++){
 						if(j!=maxfreqbin[1] && maxval[1]/absfft[freq_high_bin[j]] < THR_HIGH_RELATIVE){
 							//failed high freq relative ratio threshold
-							//printf("failed high freq relative ratio\n");
 							return -4;
 						}
 					}
@@ -415,32 +404,27 @@ int detect_tone(float absfft[]) {
 					// now check 2nd harmonic ratio
 					if(maxval[0]/absfft[freq_low_harmonic_bin[maxfreqbin[0]]] < THR_LOW_2H){
 						//failed low freq2nd harmonic ratio threshold
-						//printf("failed low freq 2nd harmonic ratio\n");
 						return -5;
 					}
 					if(maxval[1]/absfft[freq_high_harmonic_bin[maxfreqbin[1]]] < THR_HIGH_2H){
 						//failed high freq 2nd harmonic ratio threshold
-						//printf("failed high freq 2nd harmonic ratio\n");
 						return -5;
 					}
 					// did not return above, so success, return tone
 					return tones[i][2];
 				}else{
                     //failed twist ratio
-                    //printf("failed twist ratio\n");
 					return -3;
 				}
 				*/
 				return tones[i][2];
 			}else{
                 // failed sum threshold
-                //printf("failed sum threshold\n");
 				return -2;
 			}
 		}
 	}
     //failed to find valid tone combo
-    //printf("no valid tones - %d, %d\n", maxfreq[0], maxfreq[1]);
     return -1; //Random error value
 }
 
