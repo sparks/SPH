@@ -12,7 +12,7 @@
 #include "touchtone.h"
 
 #define FFTSIZE 128  //File chunk read len
-#define TEXT_FILENAME "pulserecord.txt" 
+#define TEXT_FILENAME "pulserecord2.txt" 
 
 #define FREQS_LOW 4     //number of valid low freqs to check
 #define FREQS_HIGH 3    // number of valid high freqs to check
@@ -139,13 +139,12 @@ int main() {
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
 
     /* Open the output file and quit if fail */
-	/*
 	textfile = fopen(TEXT_FILENAME,"wb");
 	if (!textfile) {
 		//printf("fopen for writing failed with %d!\n", errno);
 		return 0;
 	}
-	*/
+	
 
 	IRQ_globalEnable();
 	IRQ_enable(IRQ_EVT_RINT1);
@@ -171,13 +170,13 @@ int main() {
 	/* However, if you _do_ exit the loop (say, using a break
 	 * statement) close the D/A converter properly */
 	DSK6713_AIC23_closeCodec(hCodec);
-	//fclose(textfile); //And the textfile
+	fclose(textfile); //And the textfile
 }
 
 void record_tones_to_file(void) {
-//	for(;write_tone_index != (pulse_tone_index+1)%TONE_BUF_LEN;write_tone_index = (write_tone_index+1)%TONE_BUF_LEN) {
-//		fwrite(&tonemap[detected_tones[write_tone_index]], sizeof(char), 1, textfile);
-//	}
+	for(;write_tone_index != (pulse_tone_index+1)%TONE_BUF_LEN;write_tone_index = (write_tone_index+1)%TONE_BUF_LEN) {
+		fwrite(&tonemap[detected_tones[write_tone_index]], sizeof(char), 1, textfile);
+	}
 }
 
 Int16 generate_pulse_sample(void) {
