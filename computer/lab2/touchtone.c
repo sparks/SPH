@@ -53,13 +53,23 @@ int tones[12][3] = {
 	{941, 1477, 11}
 };
 
-// valid bins for 128 length fft
 int freq_low[] = {697, 770, 852, 941};
 int freq_high[] = {1209, 1336, 1477};
+
+// valid bins for 128 length fft
+
 int freq_low_bin[] = {11, 12, 14, 15};
 int freq_high_bin[] = {19, 21, 23};
 int freq_low_harmonic_bin[] = {22, 24, 26, 30};
 int freq_high_harmonic_bin[] = { 38, 43, 47};
+
+// valid bins for 512
+/*
+int freq_low_bin[] = {44, 49, 54, 60};
+int freq_high_bin[] = {77, 85, 93};
+int freq_low_harmonic_bin[] = {89, 98, 109, 120};
+int freq_high_harmonic_bin[] = {154, 171, 189};
+*/
 
 char tonemap[12] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'};
 
@@ -362,7 +372,7 @@ int detect_tone_new(float absfft[]) {
 				}
 			}else{
                 // failed sum threshold
-                //printf("failed sum threshold\n");
+                //printf("failed sum threshold - %d, %d\n", maxfreq[0], maxfreq[1]);
 				return -2;
 			}
 		}

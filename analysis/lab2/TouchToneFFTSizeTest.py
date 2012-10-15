@@ -2,7 +2,7 @@ from pylab import *
 import scipy.io.wavfile as wave
 import time
 
-factor = 8
+factor = 2
 n = 1024/factor
 
 tt_audio = wave.read("touchtones.wav")
@@ -25,12 +25,19 @@ THR_HIGH_2H = 10.0 # min ratio of high freq to its 2nd harmonic
 
 
 # for 128
-freq_bins = [11, 12, 14, 15, 19, 21, 23]
-#note: taking 2nd bin for 3rd freqs
+#freq_bins = [11, 12, 14, 15, 19, 21, 23]
+##note: taking 2nd bin for 3rd freqs
 freq_bin_factors = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-#freq_bin_factors = [0.848, 0.68, 0.368, 0.944, 0.656, 0.624, 0.368]
+##freq_bin_factors = [0.848, 0.68, 0.368, 0.944, 0.656, 0.624, 0.368]
 freq_harmonic_bins = [22, 24, 26, 30, 38, 42, 47]
 freq_harmonic_bin_factors = [0.696, 0.36, 0.736, 0.888, 0.312, 0.248, 0.736]
+
+# for 512
+freq_bins = [44, 49, 54, 60, 77, 85, 93]
+##note: taking 2nd bin for 3rd freqs
+##freq_bin_factors = [0.848, 0.68, 0.368, 0.944, 0.656, 0.624, 0.368]
+#freq_harmonic_bins = [22, 24, 26, 30, 38, 42, 47]
+#freq_harmonic_bin_factors = [0.696, 0.36, 0.736, 0.888, 0.312, 0.248, 0.736]
 
 
 def snap(val):
