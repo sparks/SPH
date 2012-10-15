@@ -18,7 +18,7 @@
 #define FREQS_HIGH 3    // number of valid high freqs to check
 
 // threshold
-#define THR_SIGNAL 100000.0      // sum of the magnitudes must be above this
+#define THR_SIGNAL 50000.0      // sum of the magnitudes must be above this
 #define THR_REVERSE_TWIST 2.0   // max ratio of lower to higher freq
 #define THR_STD_TWIST  0.5      // max ratio of higher to lower freq
                                 // to avoid division, this is actually the
@@ -443,6 +443,59 @@ int detect_tone_old(float absfft[]) {
 	for(i = 0;i < 12;i++) {
 		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
 			return tones[i][2];
+		}
+	}
+	return -1; //Random error value
+}
+
+int detect_tone_frankenstein(float absfft[]){
+	int i;
+	float twist_ratio;
+
+	float maxval[2] = {0, 0};
+	int maxfreq[2] = {0, 0};
+
+	//Important only touch FFTSIZE/2, bogus data after that
+	for(i = 0;i < FFTSIZE/2;i++) {
+		if(absfft[i] > maxval[1]) {
+			maxval[0] = maxval[1];
+			maxfreq[0] = maxfreq[1];
+
+			maxval[1] = absfft[i];
+			maxfreq[1] = i;
+		} else if(absfft[i] > maxval[0]) {
+			maxval[0] = absfft[i];
+			maxfreq[0] = i;
+		}
+	}
+
+	maxfreq[0] = snapfreq(maxfreq[0]);
+	maxfreq[1] = snapfreq(maxfreq[1]);
+
+	if(maxfreq[0] == -1 || maxfreq[1] == -1) return -1; //Error value
+
+	if(maxfreq[0] > maxfreq[1]) {
+		int tmp = maxfreq[0];
+		maxfreq[0] = maxfreq[1];
+		maxfreq[1] = tmp;
+	}
+
+	for(i = 0;i < 12;i++) {
+		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
+			// check signal threshold
+			if(maxval[0] + maxval[1] > THR_SIGNAL){
+                // check twist ratios
+				twist_ratio = maxval[0]/maxval[1];
+				if(twist_ratio < THR_REVERSE_TWIST && twist_ratio > THR_STD_TWIST){
+					return tones[i][2];
+				}else{
+					// failed twist ratio
+					return -3;
+				}
+			}else{
+				//failed signal threshold
+				return -2;
+			}
 		}
 	}
 	return -1; //Random error value
