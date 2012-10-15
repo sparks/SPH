@@ -11,7 +11,7 @@
 #include "fft.h"
 #include "touchtone.h"
 
-#define FFTSIZE 512  //File chunk read len
+#define FFTSIZE 128  //File chunk read len
 #define TEXT_FILENAME "pulserecord.txt" 
 
 #define FREQS_LOW 4     //number of valid low freqs to check
@@ -115,14 +115,15 @@ int pulse_up = 8;
 int pulse_len = 800;
 
 int pulse_state = -1, pulse_tone_index = 0;
-int pulse_sample_index = 0, pulse_tone_count = 0, pulse_tone_count_max = 0;
-
+int pulse_sample_index = 0, pulse_tone_count = 0;
+int pulse_tone_count_max = 0;
 int sample_count = 0;
 int tone_len_count = 0;
 
 //Controllable detection params
-int fft_interval = FFTSIZE/4;
-int min_tone_len = 5;
+int fft_interval = FFTSIZE;
+int min_tone_len = 2;
+int freq_snap_thres = 40;
 
 float fft_array[FFTSIZE*2];
 FILE *textfile;
@@ -278,7 +279,7 @@ void process_sample(Int16 x) {
 	//printf("\n");
 	
 	//Touch tone detection
-	tmp = detect_tone(fft_array);
+	tmp = detect_tone_old(fft_array);
 	if(tmp < 0) gap_flag = 1;
 
 	prev_tone_index = tone_index-1;
