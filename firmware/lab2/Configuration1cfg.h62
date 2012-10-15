@@ -36,7 +36,7 @@
 	.global	_RTDX_Poll
 	.global	GBL_stackbeg
 	.global	_c_int00
-	.global	_interruptTest
+	.global	_receive_interrupt
 	.global	_transmit_interrupt
 	.global	SWI_F_iexec
 	.global	SWI_F_run
@@ -78,7 +78,6 @@
 	.global	_DIO_cbDynamicFxns
 	.global	_DIO_tskDynamicFxns
 	.global	_DIO_init
-	.global	_receive_interrupt
 
 ;; MODULE PARAMETERS
 GBL$                .set 1

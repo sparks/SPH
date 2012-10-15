@@ -12,7 +12,7 @@
 #include "touchtone.h"
 
 #define FFTSIZE 128  //File chunk read len
-#define TEXT_FILENAME "pulserecord2.txt" 
+#define TEXT_FILENAME "pulserecord.txt" 
 
 #define FREQS_LOW 4     //number of valid low freqs to check
 #define FREQS_HIGH 3    // number of valid high freqs to check
@@ -32,7 +32,7 @@ void process_sample(Int16);
 int detect_tone(float*);
 Int16 generate_pulse_sample(void);
 void record_tones_to_file(void);
-int abs(int);
+int absolute(int);
 int detect_tone_old(float*);
 
 void receive_interrupt(void);
@@ -144,7 +144,6 @@ int main() {
 		//printf("fopen for writing failed with %d!\n", errno);
 		return 0;
 	}
-	
 
 	IRQ_globalEnable();
 	IRQ_enable(IRQ_EVT_RINT1);
@@ -175,8 +174,12 @@ int main() {
 
 void record_tones_to_file(void) {
 	for(;write_tone_index != (pulse_tone_index+1)%TONE_BUF_LEN;write_tone_index = (write_tone_index+1)%TONE_BUF_LEN) {
+	//	printf("%c", tonemap[detected_tones[write_tone_index]]);
 		fwrite(&tonemap[detected_tones[write_tone_index]], sizeof(char), 1, textfile);
 	}
+//	puts("\n");
+	
+	fflush(textfile);
 }
 
 Int16 generate_pulse_sample(void) {
@@ -453,8 +456,8 @@ int snapfreq(int bin) {
 	int i, snapped;
 
 	for(i = 0;i < 7;i++) {
-		if(abs(valid_freq[i]-val) < diff) {
-			diff = abs(valid_freq[i]-val);
+		if(absolute(valid_freq[i]-val) < diff) {
+			diff = absolute(valid_freq[i]-val);
 			snapped = valid_freq[i];
 		}
 	}
@@ -467,7 +470,7 @@ int snapfreq(int bin) {
 
 }
 
-int abs(int val) {
+int absolute(int val) {
 	if(val < 0) return -val;
 	else return val;
 }
