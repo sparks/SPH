@@ -3,19 +3,11 @@
 // Salenikovich, Stepan - 260326129
 // Smith, Severin - 260349085
 
-#include <dsk6713.h>
-#include <dsk6713_aic23.h>
-#include <stdio.h>
-#include <errno.h>
-
 #include "fft.h"
 #include "touchtone.h"
 
 #define FFTSIZE 128  //File chunk read len
-#define TEXT_FILENAME "pulserecord.txt" 
-
-#define FREQS_LOW 4     //number of valid low freqs to check
-#define FREQS_HIGH 3    // number of valid high freqs to check
+#define TEXT_FILENAME "pulserecord.txt" //output file
 
 // threshold
 #define THR_SIGNAL 50000.0      // sum of the magnitudes must be above this
@@ -23,59 +15,16 @@
 #define THR_STD_TWIST  0.5      // max ratio of higher to lower freq
                                 // to avoid division, this is actually the
                                 // inverse ratio (1/2.0)
+
+// note: the follwoing 6 defs are only used for the TI threshold detection
 #define THR_LOW_RELATIVE 6.0    // min ratio of highest mag low freq to others
 #define THR_HIGH_RELATIVE 6.0   // min ratio of highest mag high freq to others
 #define THR_LOW_2H 2.0         // min ratio of low freq to its 2nd harmonic
 #define THR_HIGH_2H 10.0        // min ratio of high freq to its 2nd harmonic
 
-/* processes a new input sample:
- * adds the new sample to the buffer;
- * if there are enough new samples, performs fft on the samples;
- * then perfoms tone detection on the result of the fft,
- * validates the results and stacks any valid digits detected.
- */
-void process_sample(Int16);
+#define FREQS_LOW 4     //number of valid low freqs to check
+#define FREQS_HIGH 3    // number of valid high freqs to check
 
-/* detects tones from input absolute value fft,
- * returns a valid digit, or else an error:
- * works by performing several threshold checks;
- * currently is not used.
- */
-int detect_tone(float*);
-
-/* generates pulse to be output:
- */
-Int16 generate_pulse_sample(void);
-
-/* records the detected digits to an output file:
- */
-void record_tones_to_file(void);
-
-/* computes the absolute value of the fft,
- * takes the complex fft as input,
- * returns absolute value fft array:
- */
-int absolute(int);
-
-/* detects tones from input absolute value fft array,
- * returns a valid digit, or else an error:
- * works by simply detecting the two highest value frequency bins,
- * tries to snap the those frequencies to the possible valid tone frequencies,
- * checks if this results in a valid tone combo,
- * and outputs a valid digit if it finds a valid tone combo.
- */
-int detect_tone_old(float*);
-
-/* detects tones from input absolute value fft array,
- * returns a valid digit, or else an error:
- * works the same way as the old max bins method,
- * adds the signal threshold and twist ratio check.
- */
-int detect_tone_frankenstein(float*);
-
-/* interrupts */
-void receive_interrupt(void);
-void transmit_interrupt(void);
 
 DSK6713_AIC23_Config config = {
     0x0017, /* 0 DSK6713_AIC23_LEFTINVOL Left line input channel volume */
@@ -173,6 +122,10 @@ Int16 mix = 0, audio_out = 0;
 
 volatile Uint8 input_ready = 0, output_ready = 0, channel_flag = 0;
 
+/**
+ * main method
+ * contains main run loop
+ */
 int main() {
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
@@ -183,7 +136,8 @@ int main() {
 	if (!textfile) {
 		return 0;
 	}
-
+	
+	// enable interrupts
 	IRQ_globalEnable();
 	IRQ_enable(IRQ_EVT_RINT1);
 	IRQ_enable(IRQ_EVT_XINT1);
@@ -211,15 +165,22 @@ int main() {
 	fclose(textfile); //And the textfile
 }
 
+/**
+ * records the detected digits to an output file.
+ *
+ * note: will write to the end of file
+ */
 void record_tones_to_file(void) {
 	for(;write_tone_index != (pulse_tone_index+1)%TONE_BUF_LEN;write_tone_index = (write_tone_index+1)%TONE_BUF_LEN) {
 		fwrite(&tonemap[detected_tones[write_tone_index]], sizeof(char), 1, textfile);
 	}
-//	puts("\n");
-	
+	// flushes write buffer to file
 	fflush(textfile);
 }
 
+/**
+ * generates pulse to be output:
+ */
 Int16 generate_pulse_sample(void) {
 	if(pulse_state != 1) {
 		if(pulse_tone_index == tone_index) {
@@ -287,6 +248,13 @@ Int16 generate_pulse_sample(void) {
 	return 0;
 }
 
+/**
+ * processes a new input sample:
+ * adds the new sample to the buffer;
+ * if there are enough new samples, performs fft on the samples;
+ * then perfoms tone detection on the result of the fft,
+ * validates the results and stacks any valid digits detected.
+ */
 void process_sample(Int16 x) {
 	int i, tmp;
 
@@ -314,7 +282,7 @@ void process_sample(Int16 x) {
 
 	
 	//Touch tone detection
-	tmp = detect_tone_frankenstein(fft_array);
+	tmp = detect_tone(fft_array);
 	if(tmp < 0) {
 		if(gap_len_count >= min_gap_len) {
 			gap_flag = 1;
@@ -350,143 +318,16 @@ void process_sample(Int16 x) {
 
 }
 
-/** Detection junk below here */
-int detect_tone(float absfft[]) {
-    // loop iteration vars
-	int i,j;
-
-	float maxval[2] = {0.0,0.0};
-	int maxfreq[2] = {0,0};
-	int maxfreqbin[2] = {0,0};
-
-	float twist_ratio;
-
-    //get highest mag low and high freq
-	for(i = 0; i < FREQS_LOW; i++){
-		if(maxval[0] < absfft[freq_low_bin[i]]){
-			maxfreqbin[0] = i;
-			maxfreq[0] = freq_low[i];
-			maxval[0] = absfft[freq_low_bin[i]];
-		}
-	}
-	for(i = 0; i < FREQS_HIGH; i++){
-		if(maxval[1] < absfft[freq_high_bin[i]]){
-			maxfreqbin[1] = i;
-			maxfreq[1] = freq_high[i];
-			maxval[1] = absfft[freq_high_bin[i]];
-		}
-	}
-
-    // check if its a valid tone combo
-	for(i = 0;i < 12;i++) {
-		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
-	    // check sum threshold
-			if(maxval[0] + maxval[1] > THR_SIGNAL){
-                // check twist ratios
-				/*
-				twist_ratio = maxval[0]/maxval[1];
-				if(twist_ratio < THR_REVERSE_TWIST && twist_ratio > THR_STD_TWIST){
-					
-					// check ratio relative to the other valid frequencies
-					for(j = 0; j < FREQS_LOW; j++){
-						if(j!=maxfreqbin[0] && maxval[0]/absfft[freq_low_bin[j]] < THR_LOW_RELATIVE){
-							//failed low freq relative ratio threshold
-							return -4;
-						}
-					}
-					for(j=0; j<FREQS_HIGH; j++){
-						if(j!=maxfreqbin[1] && maxval[1]/absfft[freq_high_bin[j]] < THR_HIGH_RELATIVE){
-							//failed high freq relative ratio threshold
-							return -4;
-						}
-					}
-					// did not return above so go to next check
-					// now check 2nd harmonic ratio
-					if(maxval[0]/absfft[freq_low_harmonic_bin[maxfreqbin[0]]] < THR_LOW_2H){
-						//failed low freq2nd harmonic ratio threshold
-						return -5;
-					}
-					if(maxval[1]/absfft[freq_high_harmonic_bin[maxfreqbin[1]]] < THR_HIGH_2H){
-						//failed high freq 2nd harmonic ratio threshold
-						return -5;
-					}
-					// did not return above, so success, return tone
-					return tones[i][2];
-				}else{
-                    //failed twist ratio
-					return -3;
-				}
-				*/
-				return tones[i][2];
-			}else{
-                // failed sum threshold
-				return -2;
-			}
-		}
-	}
-    //failed to find valid tone combo
-    return -1; //Random error value
-}
-
-void receive_interrupt(void) {
-	if(channel_flag){
-		DSK6713_AIC23_read(hCodec, &left);
-		channel_flag = 0;
-	} else {
-		DSK6713_AIC23_read(hCodec, &right);
-		mix = ((Int16)left + (Int16)right)/2.0;
-		channel_flag = 1;
-	}
-
-	input_ready = 1;
-}
-
-void transmit_interrupt(void) {
-	DSK6713_AIC23_write(hCodec, audio_out & 0xFFFF);
-	if(output_ready <= 1) output_ready++;
-}
-
-
-int detect_tone_old(float absfft[]) {
-	int i;
-
-	float maxval[2] = {0, 0};
-	int maxfreq[2] = {0, 0};
-
-	//Important only touch FFTSIZE/2, bogus data after that
-	for(i = 0;i < FFTSIZE/2;i++) {
-		if(absfft[i] > maxval[1]) {
-			maxval[0] = maxval[1];
-			maxfreq[0] = maxfreq[1];
-
-			maxval[1] = absfft[i];
-			maxfreq[1] = i;
-		} else if(absfft[i] > maxval[0]) {
-			maxval[0] = absfft[i];
-			maxfreq[0] = i;
-		}
-	}
-
-	maxfreq[0] = snapfreq(maxfreq[0]);
-	maxfreq[1] = snapfreq(maxfreq[1]);
-
-	if(maxfreq[0] == -1 || maxfreq[1] == -1) return -1; //Error value
-
-	if(maxfreq[0] > maxfreq[1]) {
-		int tmp = maxfreq[0];
-		maxfreq[0] = maxfreq[1];
-		maxfreq[1] = tmp;
-	}
-
-	for(i = 0;i < 12;i++) {
-		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
-			return tones[i][2];
-		}
-	}
-	return -1; //Random error value
-}
-
-int detect_tone_frankenstein(float absfft[]){
+/**
+ * detects tones from input absolute value fft array,
+ * returns a valid digit, or else an error:
+ * works by first finding the two max value bins in the fft array,
+ * then tries to snap them to valid tone frequencies;
+ * if valid tones are found, they are checked to be a valid tone combo.
+ * finally a signal threshold test and then a twist ration test are preformed.
+ * (twist ratio checks the relative magnitude of the two tones).
+ */
+int detect_tone(float absfft[]){
 	int i;
 	float twist_ratio;
 
@@ -539,6 +380,29 @@ int detect_tone_frankenstein(float absfft[]){
 	return -1; //Random error value
 }
 
+/** interrupts **/
+void receive_interrupt(void) {
+	if(channel_flag){
+		DSK6713_AIC23_read(hCodec, &left);
+		channel_flag = 0;
+	} else {
+		DSK6713_AIC23_read(hCodec, &right);
+		mix = ((Int16)left + (Int16)right)/2.0;
+		channel_flag = 1;
+	}
+
+	input_ready = 1;
+}
+
+void transmit_interrupt(void) {
+	DSK6713_AIC23_write(hCodec, audio_out & 0xFFFF);
+	if(output_ready <= 1) output_ready++;
+}
+
+/**
+ * tries to snap the input frequency to one of the valid tone frequencies
+ * returns snapped freq on success; -1 on failure
+ */
 int snapfreq(int bin) {
 	int valid_freq[7] = {697, 770, 852, 941, 1209, 1336, 1477};
 
@@ -561,7 +425,141 @@ int snapfreq(int bin) {
 
 }
 
+/**
+ * computes the absolute value of input int
+ */
 int absolute(int val) {
 	if(val < 0) return -val;
 	else return val;
+}
+
+/**
+ * detects tones from input absolute value fft array,
+ * returns a valid digit, or else an error:
+ * works by simply detecting the two highest value frequency bins,
+ * tries to snap the those frequencies to the possible valid tone frequencies,
+ * checks if this results in a valid tone combo,
+ * and outputs a valid digit if it finds a valid tone combo.
+ */
+int detect_tone_maxbins(float absfft[]) {
+	int i;
+
+	float maxval[2] = {0, 0};
+	int maxfreq[2] = {0, 0};
+
+	//Important only touch FFTSIZE/2, bogus data after that
+	for(i = 0;i < FFTSIZE/2;i++) {
+		if(absfft[i] > maxval[1]) {
+			maxval[0] = maxval[1];
+			maxfreq[0] = maxfreq[1];
+
+			maxval[1] = absfft[i];
+			maxfreq[1] = i;
+		} else if(absfft[i] > maxval[0]) {
+			maxval[0] = absfft[i];
+			maxfreq[0] = i;
+		}
+	}
+
+	maxfreq[0] = snapfreq(maxfreq[0]);
+	maxfreq[1] = snapfreq(maxfreq[1]);
+
+	if(maxfreq[0] == -1 || maxfreq[1] == -1) return -1; //Error value
+
+	if(maxfreq[0] > maxfreq[1]) {
+		int tmp = maxfreq[0];
+		maxfreq[0] = maxfreq[1];
+		maxfreq[1] = tmp;
+	}
+
+	for(i = 0;i < 12;i++) {
+		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
+			return tones[i][2];
+		}
+	}
+	return -1; //Random error value
+}
+
+/**
+ * NOTE: currently is not calibrated
+ * detects tones from input absolute   value fft,
+ * returns a valid digit, or else an error:
+ * works by performing several threshold checks;
+ * currently does not work.
+ */
+int detect_tone_TI_thresholds(float absfft[]) {
+    // loop iteration vars
+	int i,j;
+
+	float maxval[2] = {0.0,0.0};
+	int maxfreq[2] = {0,0};
+	int maxfreqbin[2] = {0,0};
+
+	float twist_ratio;
+
+    //get highest mag low and high freq
+	for(i = 0; i < FREQS_LOW; i++){
+		if(maxval[0] < absfft[freq_low_bin[i]]){
+			maxfreqbin[0] = i;
+			maxfreq[0] = freq_low[i];
+			maxval[0] = absfft[freq_low_bin[i]];
+		}
+	}
+	for(i = 0; i < FREQS_HIGH; i++){
+		if(maxval[1] < absfft[freq_high_bin[i]]){
+			maxfreqbin[1] = i;
+			maxfreq[1] = freq_high[i];
+			maxval[1] = absfft[freq_high_bin[i]];
+		}
+	}
+
+    // check if its a valid tone combo
+	for(i = 0;i < 12;i++) {
+		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
+	    // check sum threshold
+			if(maxval[0] + maxval[1] > THR_SIGNAL){
+                // check twist ratios
+
+				twist_ratio = maxval[0]/maxval[1];
+				if(twist_ratio < THR_REVERSE_TWIST && twist_ratio > THR_STD_TWIST){
+					
+					// check ratio relative to the other valid frequencies
+					for(j = 0; j < FREQS_LOW; j++){
+						if(j!=maxfreqbin[0] && maxval[0]/absfft[freq_low_bin[j]] < THR_LOW_RELATIVE){
+							//failed low freq relative ratio threshold
+							return -4;
+						}
+					}
+					for(j=0; j<FREQS_HIGH; j++){
+						if(j!=maxfreqbin[1] && maxval[1]/absfft[freq_high_bin[j]] < THR_HIGH_RELATIVE){
+							//failed high freq relative ratio threshold
+							return -4;
+						}
+					}
+					// did not return above so go to next check
+					// now check 2nd harmonic ratio
+					if(maxval[0]/absfft[freq_low_harmonic_bin[maxfreqbin[0]]] < THR_LOW_2H){
+						//failed low freq2nd harmonic ratio threshold
+						return -5;
+					}
+					if(maxval[1]/absfft[freq_high_harmonic_bin[maxfreqbin[1]]] < THR_HIGH_2H){
+						//failed high freq 2nd harmonic ratio threshold
+						return -5;
+					}
+					// did not return above, so success, return tone
+					return tones[i][2];
+				}else{
+                    //failed twist ratio
+					return -3;
+				}
+				
+				return tones[i][2];
+			}else{
+                // failed sum threshold
+				return -2;
+			}
+		}
+	}
+    //failed to find valid tone combo
+    return -1; //Random error value
 }
