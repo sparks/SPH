@@ -4,14 +4,14 @@ import csv
 frames1 = []
 frames2 = []
 
-with open('output1', 'rb') as file:
+with open('dspfftdata1.csv', 'rb') as file:
 	reader = csv.reader(file)
 	for row in reader:
 		frame = []
 		for v in row:
 			frame.append(float(v))
 		frames1.append(frame)
-with open('output2', 'rb') as file:
+with open('dspfftdata2.csv', 'rb') as file:
 	reader = csv.reader(file)
 	for row in reader:
 		frame = []
