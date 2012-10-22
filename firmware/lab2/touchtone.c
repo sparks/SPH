@@ -88,6 +88,9 @@ char tonemap[12] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '#'};
 Int16 buffer[FFTSIZE];
 int buffer_index = 0;
 
+// Maximum length of digit sequence
+// if sequence excedes this leght, digits will be lost
+// note: required length was 20
 #define TONE_BUF_LEN 30
 int detected_tones[TONE_BUF_LEN] = {
 	-1, -1, -1, -1, -1,
@@ -98,11 +101,16 @@ int detected_tones[TONE_BUF_LEN] = {
 	-1, -1, -1, -1, -1
 }
 ;
+
+// 
 int write_tone_index = 0, tone_index = 0, gap_flag = 1;
 
-int pulse_up = 8;
-int pulse_len = 800;
+// pulse generation variables
+int pulse_up = 8;		// sample length of output spike
+int pulse_len = 800;	// default sample length of silence between pulses of same digit
+						// this is the required default of 10Hz pulse rate
 
+// initialized pulse generation state machine vars
 int pulse_state = -1, pulse_tone_index = 0;
 int pulse_sample_index = 0, pulse_tone_count = 0;
 int pulse_tone_count_max = 0;
@@ -121,7 +129,15 @@ FILE *textfile;
 Uint32 left = 0, right = 0;
 Int16 mix = 0, audio_out = 0;
 
+// input and output sample flags
+// used to communicate between the main run loop and the interrupts
+// to know when input/output samples are ready to be processes/output
+// channel flag is used to switch between buffering left and right channels
 volatile Uint8 input_ready = 0, output_ready = 0, channel_flag = 0;
+
+//#define FFT_BUFF_LEN 100
+//far float fft_buff[FFT_BUFF_LEN][FFTSIZE/2];
+//int fft_buff_index = 0;
 
 /**
  * main method
@@ -143,6 +159,7 @@ int main() {
 	IRQ_enable(IRQ_EVT_RINT1);
 	IRQ_enable(IRQ_EVT_XINT1);
 
+	// the first write is needed to trigger the transmit interrupt
 	while(!DSK6713_AIC23_write(hCodec, 0));
 
 	channel_flag = 1;
@@ -177,6 +194,19 @@ void record_tones_to_file(void) {
 	}
 	// flushes write buffer to file
 	fflush(textfile);
+}
+
+void record_fft_buff_to_file(void) {
+/*	int i,j;
+	for(i = 0;i < FFT_BUFF_LEN;i++) {
+		for(j = 0;j < FFTSIZE/2;j++) {
+			if(j != 0) fprintf(textfile, ", ");
+			fprintf(textfile, "%f", fft_buff[i][j]);
+		}
+		fprintf(textfile, "\n");
+	}
+	fflush(textfile);
+	fft_buff_index = 0;*/
 }
 
 /**
@@ -290,7 +320,12 @@ void process_sample(Int16 x) {
 
 	for(i = 0;i < FFTSIZE/2;i++) { //Compute the magnitude squared of the FFT (only below nyquist rate)
 		fft_array[i] = (fft_array[2*i]*fft_array[2*i]+fft_array[2*i+1]*fft_array[2*i+1]); //reuse the same array to save memory
+	//	fft_buff[fft_buff_index][i] = fft_array[i];
 	}
+//	fft_buff_index++;
+//	if(fft_buff_index == FFT_BUFF_LEN) {
+//		record_fft_buff_to_file();
+//	}
 
 	
 	//Touch tone detection
@@ -366,7 +401,6 @@ int detect_tone(float absfft[]){
 	if(maxfreq[0] == -1 || maxfreq[1] == -1) return -1; //Error value
 	
 	//We have two valid bins
-
 	if(maxfreq[0] > maxfreq[1]) { //Sort
 		int tmp = maxfreq[0];
 		maxfreq[0] = maxfreq[1];
@@ -476,17 +510,22 @@ int detect_tone_maxbins(float absfft[]) {
 		}
 	}
 
+	// attempts to snap the two detected frequencies ot one of the valid tone frequencies
 	maxfreq[0] = snapfreq(maxfreq[0]);
 	maxfreq[1] = snapfreq(maxfreq[1]);
 
+	// both must have been detected as valid freqs, or else error value is returned
 	if(maxfreq[0] == -1 || maxfreq[1] == -1) return -1; //Error value
 
+	// sort the frequencies and amplitude values by increasing frequency
+	// low freq must come first when checking if its a valid freq combo
 	if(maxfreq[0] > maxfreq[1]) {
 		int tmp = maxfreq[0];
 		maxfreq[0] = maxfreq[1];
 		maxfreq[1] = tmp;
 	}
 
+	// checks if its a valid tone freq combo
 	for(i = 0;i < 12;i++) {
 		if(tones[i][0] == maxfreq[0] && tones[i][1] == maxfreq[1]) {
 			return tones[i][2];

@@ -355,7 +355,7 @@ def animateWithTonesMax():
 
 def slice(block_num):
 	ft = abs(fft(blocks[block_num]))
-	plot([i*8000.0/n for i in range(n)], ft, 'o')
+	plot([i*8000.0/n for i in range(n)], ft)
 	show()
 
 def animateWithTonesRMS():
@@ -408,5 +408,4 @@ def animateWithTonesRMS():
 	if expected == stack:
 		print "Matches Expected Results"
 
-# slice(100)
 animateWithThresholds()
