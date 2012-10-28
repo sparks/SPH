@@ -94,7 +94,7 @@ class AdaptiveFilter:
 			# if l == 0:
 				# print self.w[l], self.e, self.buff[len(self.buff)-1-l]
 			# self.w[l] += self.mu*self.e*self.buff[len(self.buff)-l-1] #lastvalue is n
-			self.w[l] += (self.mu/var/self.L)*self.e*self.buff[len(self.buff)-l-1] #last value is n
+			self.w[l] += (self.mu/(0.1+ var*self.L))*self.e*self.buff[len(self.buff)-l-1] #last value is n
 			# if l == 0:
 				# print self.w[l]
 
@@ -107,13 +107,13 @@ def audio_adaptive(n):
 	cleansignal = audio[1][:,0]
 	cleansignal = cleansignal
 
-	cleansignal = cleansignal[20*8000: 24*8000]
+	cleansignal = cleansignal[21*8000: 24*8000]
 	# cleansignal = randn(1000)
 
 	start_t = time.clock()
 	e = []
 
-	f = AdaptiveFilter(0.3, len(filters[n]), filters[n])
+	f = AdaptiveFilter(0.08, int(len(filters[n])*1.5), filters[n])
 
 	for i, v in enumerate(cleansignal):
 		f.input(v)
@@ -125,6 +125,12 @@ def audio_adaptive(n):
 	stop_t = time.clock()
 
 	print e[-10:,0]
+	# subplot(2, 1, 1)
+	plot(e)
+	# subplot(2, 1, 2)
+	plot(cleansignal)
+	show()
+
 	# print float(f.tot)/f.count
 
 	wave.write("signal-echo-out.wav", audio[0], e)
@@ -132,53 +138,8 @@ def audio_adaptive(n):
 	print " --- "
 	print stop_t-start_t
 
-# def audio_adaptive(n):
-# 	audio = wave.read("signal-echo.wav")
+audio_adaptive(1)
 
-# 	cleansignal = audio[1][:,0]
-# 	cleansignal = cleansignal
-
-# 	# cleansignal = cleansignal[20*8000: 21*8000]
-# 	# cleansignal = randn(1000)
-
-# 	start_t = time.clock()
-# 	e = []
-
-# 	for j in range(100):
-
-# 		f = AdaptiveFilter(0.05+0.001*j, len(filters[n]), filters[n])
-
-# 		count = 0
-# 		errorcount = 0
-
-# 		print j
-
-# 		for i, v in enumerate(cleansignal):
-# 			count += 1
-# 			f.input(v)
-# 			# e.append([f.error(), f.error()])
-# 			if f.error() < 0.001:
-# 				errorcount += 1
-# 				if errorcount > 1000:
-# 					e.append(count-1000)
-# 					break
-# 			f.grad_desc()
-
-# 	plot([0.05+0.001*j for j in range(100)], e)
-# 	show()
-
-# 	# e = array(e)
-
-# 	# stop_t = time.clock()
-
-# 	# print e[-10:,0]
-
-# 	# wave.write("signal-echo-out.wav", audio[0], e)
-
-# 	# print " --- "
-# 	# print stop_t-start_t
-
-audio_adaptive(0)
 
 def test_adaptive_filter(mu, L, h):
 	f = AdaptiveFilter(mu, L, h)
