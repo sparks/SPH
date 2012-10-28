@@ -1,0 +1,48 @@
+; Code Composer Project File, Version 2.0 (do not modify or remove this line)
+
+[Project Settings]
+ProjectDir="H:\SPH\firmware\lab3\"
+ProjectType=Executable
+CPUFamily=TMS320C67XX
+Tool="Compiler"
+Tool="CustomBuilder"
+Tool="DspBiosBuilder"
+Tool="Linker"
+Config="Debug"
+Config="Release"
+
+[Source Files]
+Source="Configuration1.cdb"
+Source="convolve_as_func.sa"
+Source="main.c"
+Source="main.h"
+
+[Generated Files]
+Source="Configuration1cfg.cmd"
+Source="Configuration1cfg.s62"
+Source="Configuration1cfg_c.c"
+
+["Compiler" Settings: "Debug"]
+Options=-g -k -pm -o3 -fr"$(Proj_dir)\Debug" -i"H:\SPH\firmware\lib\dsk6713\include" -d"_DEBUG" -d"CHIP_6713" -mw -mv6700
+
+["Compiler" Settings: "Release"]
+Options=-k -pm -os -o3 -fr"$(Proj_dir)\Release" -i"H:\SPH\firmware\lib\dsk6713\include" -d"CHIP_6713" -mw -mv6700
+
+["Linker" Settings: "Debug"]
+Options=-c -m".\Debug\lab3.map" -o".\Debug\lab3.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
+
+["Linker" Settings: "Release"]
+Options=-c -m".\Release\lab3.map" -o".\Release\lab3.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
+
+["main.h" Settings: "Debug"]
+ExcludeFromBuild=true
+
+["main.h" Settings: "Release"]
+ExcludeFromBuild=true
+
+["Configuration1cfg.cmd" Settings: "Debug"]
+LinkOrder=1
+
+["Configuration1cfg.cmd" Settings: "Release"]
+LinkOrder=1
+
