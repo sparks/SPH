@@ -84,6 +84,8 @@ class AdaptiveFilter:
 
 	def grad_desc(self):
 		var = variance(self.buff)
+		if var > 100:
+			print var
 		if var == 0:
 			return
 
@@ -138,7 +140,7 @@ def audio_adaptive(n):
 	print " --- "
 	print stop_t-start_t
 
-audio_adaptive(1)
+audio_adaptive(0)
 
 
 def test_adaptive_filter(mu, L, h):
