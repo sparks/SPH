@@ -13,7 +13,7 @@
 #define ECHO_FILENAME "signal-echoR.raw"
 #define OUTPUT_FILENAME "signal-echo-out.raw"
 
-#define DYN_MU_ENABLE
+// #define DYN_MU_ENABLE
 
 // Prototypes
 void reset(void);
@@ -24,6 +24,7 @@ float convolve(float*, float*, int, int);
 float variance(float*, int);
 short toShort(float);
 float toFloat(short);
+float abs(float v);
 
 //Variables for File IO
 short CLEAN_IN[BLOCKSIZE]; //16 bit values
@@ -45,7 +46,20 @@ float buffer[L];
 float muMax = 0;
 float muMin = 10000000;
 
+float convMax = 0;
+float convMin = 10000000;
+
+float wMax = 0;
+float wMin = 10000000;
+
 int main() {
+	#ifdef DYN_MU_ENABLE
+	printf("\033[31;1mDynamic Mu\n");
+	#endif
+	#ifndef DYN_MU_ENABLE
+	printf("\033[31;1mStatic Mu\n");
+	#endif
+
 	FILE *cleanfile, *echofile, *outfile;
 	int datacount;
 
@@ -80,11 +94,23 @@ int main() {
 		fwrite(DATA_OUT, sizeof(short), datacount, outfile);
 	} while (datacount == BLOCKSIZE);
 
-	printf("%f\n", muMin);
-	printf("%f\n", muMax);
+	printf("\033[33;1mmuMax %f\n", muMin);
+	printf("\033[33;1mmuMin %f\n", muMax);
+
+	printf("\033[33;1mwMin %f\n", wMin);
+	printf("\033[33;1mwMax %f\n", wMax);
+
+	printf("\033[33;1mconvMin %f\n", convMin);
+	printf("\033[33;1mconvMax %f\n", convMax);
+
+	printf("\033[0m");
+
 	int i;
+	float bound = 0.5;
 	for(i = 0;i < L;i++) {
+		if(w[i] > bound || w[i] < -bound) printf("\033[37;1m");
 		printf("%f,", w[i]);
+		if(w[i] > bound || w[i] < -bound) printf("\033[0m");
 	}
 	printf("\n");
 
@@ -130,6 +156,8 @@ float process_sample(float clean, float echo) {
 	if(buffer_index >= L) buffer_index = 0;
 
 	yw = convolve(w, buffer, buffer_index, L);
+	if(abs(yw) > convMax) convMax = abs(yw);
+	if(abs(yw) < convMin) convMin = abs(yw);
 
 	error = echo-yw;
 
@@ -164,9 +192,11 @@ void grad_desc(void) {
 
 	tmp_b_index = buffer_index-1;
 
-	float mu_adj = mu / (L*var);
+	#ifdef DYN_MU_ENABLE
+	float mu_adj = abs(mu / (L*var));
 	if(mu_adj < muMin) muMin = mu_adj;
 	if(mu_adj > muMax) muMax = mu_adj;
+	#endif
 
 	for(i = 0;i < L;i++) {
 		if(tmp_b_index < 0) tmp_b_index = 0;
@@ -175,6 +205,8 @@ void grad_desc(void) {
 		#else
 		w[i] += mu * error * buffer[tmp_b_index];
 		#endif
+		if(abs(w[i]) > wMax) wMax = abs(w[i]);
+		if(abs(w[i]) < wMin) wMin = abs(w[i]);
 		tmp_b_index--;
 	}
 }
@@ -198,4 +230,9 @@ float variance(float* signal, int len) {
 	var = var/(len-1);
 
 	return var;
+}
+
+float abs(float v) {
+	if(v < 0) return -v;
+	else return v;
 }
