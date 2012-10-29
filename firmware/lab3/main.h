@@ -15,8 +15,8 @@
 
 #endif
 
-long long convolve(int w[], int x[], int n);
-long long convolve_opt(int w[], int x[], int n);
+int convolve(int x[], int w[], int x_idx, int w_length);
+int convolve_opt(short w[], short x[], int n);
 void receive_interrupt(void);
 void transmit_interrupt(void);
 void process_sample(Int16 x);

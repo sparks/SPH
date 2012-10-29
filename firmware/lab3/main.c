@@ -24,7 +24,14 @@ DSK6713_AIC23_CodecHandle hCodec;
 
 FILE *textfile;
 
-int out1, out2, out3;
+int out1, out2, out3, out4;
+
+//test values
+int w[10] = {-7726, -5544, -3805, -919, -5055, 3105, -8432, 7087, 6867, 4660};
+int x[16] = {-2568, 3993, 0, 0, 0, 0, 0, 0, 1439, 9921, -1472, -9800, -3391, 5708, 6408, 1202};
+#pragma DATA_ALIGN(x, 64)
+
+int n = 10;
 
 Uint32 left = 0, right = 0;
 Int16 mix = 0, audio_out = 0;
@@ -44,39 +51,46 @@ volatile Uint8 input_ready = 0, output_ready = 0, channel_flag = 0;
  * contains main run loop
  */
 int main() {
-	extern long long convolve_as_func(int w[], int x[], int n);
+	extern int convolve_as_func(int x[], int w[], int x_idx, int w_length);
 	/*
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
 	*/
+	long long a = 1000<<16;
+	long long b = 1000<<16;
+	int c = 0;
 
 	clock_t start, stop, overhead;
 
-	int w[10] = {-7726, -5544, -3805, -919, -5055, 3105, -8432, 7087, 6867, 4660};
-	int x[10] = {1439, 9921, -1472, -9800, -3391, 5708, 6408, 1202, -2568, 3993};
-	short y[10] = {-7726, -5544, -3805, -919, -5055, 3105, -8432, 7087, 6867, 4660};
-	short z[10] = {1439, 9921, -1472, -9800, -3391, 5708, 6408, 1202, -2568, 3993};
 	int n = 10;
+	
+	c = (a*b)>>31;
+	printf("%d\n", c);
 
 	start = clock();
 	stop = clock();
 	overhead = stop - start;
-
+	
+	
 	start = clock();
-	out1 = convolve(w, x, n);
+	out1 = convolve(x, w, 1, n);
 	stop = clock();
 	printf("convovle no opt cycles: %d\n", stop - start - overhead);
 
+	/*
 	start = clock();
 	out2 = convolve_opt(w, x, n);
 	stop = clock();
 	printf("convovle opt cycles: %d\n", stop - start - overhead);
-
+	*/
 	start = clock();
-	out3 = convolve_as_func(w, x, n);
+	out3 = convolve_as_func(x, w, 1, n);
 	stop = clock();
 	printf("convovle as cycles: %d\n", stop - start - overhead);
+
+	x[2] = -5458;
+	out4 = convolve_as_func(x, w, 2, n);
 
     /* Open the output file and quit if fail */
 	/*
@@ -148,18 +162,20 @@ void transmit_interrupt(void) {
 	if(output_ready <= 1) output_ready++;
 }
 
-long long convolve(int w[], int x[], int n) {
+int convolve(int x[], int w[], int x_idx, int w_length) {
 	int i = 0;
 	int result = 0;
 
-	for(; i < n; i++) {
-		result += w[i]*x[n-1-i];
+	for(; i < w_length; i++) {
+		result += (long long)w[i]*(long long)x[x_idx];
+		x_idx--;
+		if(x_idx < 0)x_idx = 15;
 	}
 
 	return result;
 }
 
-long long convolve_opt(int w[restrict], int x[restrict], int n) {
+int convolve_opt(short w[restrict], short x[restrict], int n) {
 	int i = 0;
 	int result = 0;
 
