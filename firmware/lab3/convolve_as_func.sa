@@ -14,8 +14,8 @@ _convolve_as_func 	.cproc	x, w, x_idx, w_length							;function parameters
 					addaw x, x_idx, x										;shift x_idx by 2 before adding
 					;add	x,x_idx,x										;gets the pointer to the newest value of x
 					mvc AMR, saved_amr										;save AMR to restore later
-					mvk	0x4,temp_amr										;A5 points to the buffer -> ...0100
-					mvklh	0x5, temp_amr									;N=00101 because block size is 64 (16 ints) -> 2^(n + 1) = 2^(5 + 1)
+					mvk	0x1,temp_amr										;A5 points to the buffer -> ...0100
+					mvklh	0x7, temp_amr									;N=00101 because block size is 256 (64  ints) -> 2^(n + 1) = 2^(7 + 1)
 					MVC temp_amr, AMR										;so AMR=0x00050004
 loop:				.trip 10, 51											;between 10 and 51 itterations
 					ldw	*w++,a												;load and post increment w

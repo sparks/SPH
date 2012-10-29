@@ -30,7 +30,8 @@ Int16 sig_error = 0;
 int w[L];
 
 int buffer_index = 0;
-int buffer[L];
+int buffer[64];
+#pragma DATA_ALIGN(buffer, 256)	//data must be aligned for circular buffering
 
 Uint32 in_tmp_left = 0, in_tmp_right = 0;
 Int16 in_left = 0, in_right = 0, out_left = 0, out_right = 0;
@@ -88,8 +89,8 @@ int main() {
 void reset(void) {
 	int i;
 
-	for(i = 0;i < L;i++) {
-		w[i] = 0;
+	for(i = 0;i < 64;i++) {
+		if(i < L) w[i] = 0;
 		buffer[i] = 0;
 	}
 }
@@ -99,10 +100,10 @@ Int16 process_sample(Int16 clean, Int16 echo) {
 
 	buffer[buffer_index] = clean << 16; //Zero error introduced
 
-	buffer_index++;
-	if(buffer_index >= L) buffer_index = 0;
+	yw =  convolve_as_func(buffer, w, buffer_index, L); //Error indroduced and compounded with grad_desc
 
-	yw = convolve_c(w, buffer, buffer_index, L); //Error indroduced and compounded with grad_desc
+	buffer_index++;
+	if(buffer_index >= 64) buffer_index = 0;
 
 	error = (echo << 16) - yw; //No compounding error
 
