@@ -20,18 +20,9 @@ DSK6713_AIC23_Config config = {
 
 DSK6713_AIC23_CodecHandle hCodec;
 
-int out1, out2, out3, out4;
-
-//test values
-int w[10] = {-7726, -5544, -3805, -919, -5055, 3105, -8432, 7087, 6867, 4660};
-int x[16] = {-2568, 3993, 0, 0, 0, 0, 0, 0, 1439, 9921, -1472, -9800, -3391, 5708, 6408, 1202};
-#pragma DATA_ALIGN(x, 64)
-
-int n = 10;
-
 //Adaptive Filter Variables
-#define mu 5.14748e7
-#define L 64
+#define mu 8.14748e8
+#define L 51
 
 int error = 0;
 Int16 sig_error = 0;
@@ -41,8 +32,8 @@ int w[L];
 int buffer_index = 0;
 int buffer[L];
 
-Uint32 int_tmp_left = 0, in_tmp_right = 0;
-Int16 in_left = 0, in_right = 0, out_left = 0; out_right = 0;
+Uint32 in_tmp_left = 0, in_tmp_right = 0;
+Int16 in_left = 0, in_right = 0, out_left = 0, out_right = 0;
 
 // input and output sample flags
 // used to communicate between the main run loop and the interrupts
@@ -56,46 +47,11 @@ volatile Uint8 input_ready = 0, output_ready = 0, in_channel_flag = 0, out_chann
  */
 int main() {
 	extern int convolve_as_func(int x[], int w[], int x_idx, int w_length);
-	/*
+	
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
-	*/
-	long long a = 1000<<16;
-	long long b = 1000<<16;
-	int c = 0;
 
-	clock_t start, stop, overhead;
-
-	int n = 10;
-	
-	c = (a*b)>>31;
-	printf("%d\n", c);
-
-	start = clock();
-	stop = clock();
-	overhead = stop - start;
-	
-	
-	start = clock();
-	out1 = convolve(x, w, 1, n);
-	stop = clock();
-	printf("convovle no opt cycles: %d\n", stop - start - overhead);
-
-	/*
-	start = clock();
-	out2 = convolve_opt(w, x, n);
-	stop = clock();
-	printf("convovle opt cycles: %d\n", stop - start - overhead);
-	*/
-	start = clock();
-	out3 = convolve_as_func(x, w, 1, n);
-	stop = clock();
-	printf("convovle as cycles: %d\n", stop - start - overhead);
-
-	x[2] = -5458;
-	out4 = convolve_as_func(x, w, 2, n);
-	
 	// enable interrupts
 	IRQ_globalEnable();
 	IRQ_enable(IRQ_EVT_RINT1);
@@ -205,7 +161,7 @@ void transmit_interrupt(void) {
 	if(out_channel_flag){
 		DSK6713_AIC23_write(hCodec, out_left & 0xFFFF);
 
-		in_channel_flag = 0;
+		out_channel_flag = 0;
 		output_ready = 1;
 	} else {
 		DSK6713_AIC23_write(hCodec, out_right & 0xFFFF);
