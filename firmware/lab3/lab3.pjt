@@ -1,7 +1,7 @@
 ; Code Composer Project File, Version 2.0 (do not modify or remove this line)
 
 [Project Settings]
-ProjectDir="H:\SPH\firmware\lab2\"
+ProjectDir="H:\SPH\firmware\lab3\"
 ProjectType=Executable
 CPUFamily=TMS320C67XX
 Tool="Compiler"
@@ -13,10 +13,9 @@ Config="Release"
 
 [Source Files]
 Source="Configuration1.cdb"
-Source="fft.c"
-Source="fft.h"
-Source="touchtone.c"
-Source="touchtone.h"
+Source="convolve_as_func.sa"
+Source="main.c"
+Source="main.h"
 
 [Generated Files]
 Source="Configuration1cfg.cmd"
@@ -27,24 +26,18 @@ Source="Configuration1cfg_c.c"
 Options=-g -k -pm -o3 -fr"$(Proj_dir)\Debug" -i"H:\SPH\firmware\lib\dsk6713\include" -d"_DEBUG" -d"CHIP_6713" -mw -mv6700
 
 ["Compiler" Settings: "Release"]
-Options=-o3 -fr"$(Proj_dir)\Release" -mv6700
+Options=-k -pm -os -o3 -fr"$(Proj_dir)\Release" -i"H:\SPH\firmware\lib\dsk6713\include" -d"CHIP_6713" -mw -mv6700
 
 ["Linker" Settings: "Debug"]
-Options=-c -m".\Debug\lab1-realtime.map" -o".\Debug\lab1-realtime.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
+Options=-c -m".\Debug\lab3.map" -o".\Debug\lab3.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
 
 ["Linker" Settings: "Release"]
-Options=-c -m".\Release\lab1-realtime.map" -o".\Release\lab1-realtime.out" -w -x
+Options=-c -m".\Release\lab3.map" -o".\Release\lab3.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
 
-["fft.h" Settings: "Debug"]
+["main.h" Settings: "Debug"]
 ExcludeFromBuild=true
 
-["fft.h" Settings: "Release"]
-ExcludeFromBuild=true
-
-["touchtone.h" Settings: "Debug"]
-ExcludeFromBuild=true
-
-["touchtone.h" Settings: "Release"]
+["main.h" Settings: "Release"]
 ExcludeFromBuild=true
 
 ["Configuration1cfg.cmd" Settings: "Debug"]

@@ -16,10 +16,12 @@
 // Prototypes
 void reset(void);
 void process_block(short*, short*, short*, int);
-short process_sample(short, short);
+float process_sample(float, float);
 void grad_desc(void);
-short convolve(float*, short*, int, int);
-short variance(short* signal, int len);
+float convolve(float*, float*, int, int);
+float variance(float*, int);
+short toShort(float);
+float toFloat(short);
 
 //Variables for File IO
 short CLEAN_IN[BLOCKSIZE]; //16 bit values
@@ -27,15 +29,15 @@ short ECHO_IN[BLOCKSIZE];
 short DATA_OUT[BLOCKSIZE];
 
 //Adaptive Filter Variables
-#define mu 0.08
-#define L 50
+#define mu 0.03
+#define L 76
 
-short error;
+float error = 0;
 
 float w[L];
 
-int buffer_index;
-short buffer[L];
+int buffer_index = 0;
+float buffer[L];
 
 int main() {
 	FILE *cleanfile, *echofile, *outfile;
@@ -94,29 +96,40 @@ void process_block(short *clean, short *echo, short *out, int size) {
 	int i;
 
 	for(i = 0;i < size;i++) {
-		out[i] = process_sample(clean[i], echo[i]);
-		grad_desc();
+		out[i] = toShort(process_sample(toFloat(clean[i]), toFloat(echo[i])));
 	}
 }
 
-short process_sample(short clean, short echo) {
-	short yw;
+short toShort(float v) {
+	return (short)(v*32768);
+}
+
+float toFloat(short v) {
+	return ((float)v)/32768.0;
+}
+
+float process_sample(float clean, float echo) {
+	float yw;
 
 	buffer[buffer_index] = clean;
 
 	buffer_index++;
-	if(buffer_index > L) buffer_index = 0;
+	if(buffer_index >= L) buffer_index = 0;
 
 	yw = convolve(w, buffer, buffer_index, L);
 
 	error = echo-yw;
 
+	grad_desc();
+
 	return error;
 }
 
-short convolve(float* a, short* b, int b_offset, int len) {
+float convolve(float* a, float* b, int b_offset, int len) {
 	int i;
 	float result;
+	
+	result = 0;
 
 	for(i = 0;i < len;i++) {
 		if(b_offset >= len) b_offset = 0;
@@ -124,11 +137,11 @@ short convolve(float* a, short* b, int b_offset, int len) {
 		b_offset++;
 	}
 
-	return (short)result;
+	return result;
 }
 
 void grad_desc(void) {
-	short var;
+	float var;
 	int i, tmp_b_index;
 
 	var = variance(buffer, L);
@@ -143,7 +156,7 @@ void grad_desc(void) {
 	}
 }
 
-short variance(short* signal, int len) {
+float variance(float* signal, int len) {
 	int i;
 	float avg, var;
 
@@ -161,5 +174,5 @@ short variance(short* signal, int len) {
 
 	var = var/(len-1);
 
-	return (short)var;
+	return var;
 }

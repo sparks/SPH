@@ -81,13 +81,16 @@ class AdaptiveFilter:
 		self.yw = self.yw2
 
 		self.e = self.yh-self.yw
+		
+	def inputgiven(self, x, y):
+		self.buff = append(self.buff, x)[1:]
+
+		self.yw = convolve(self.buff, self.w, 'valid')[-1]
+
+		self.e = y-self.yw
 
 	def grad_desc(self):
 		var = variance(self.buff)
-		if var > 100:
-			print var
-		if var == 0:
-			return
 
 		# self.tot += self.mu/var/self.L
 		# self.count += 1
@@ -96,7 +99,7 @@ class AdaptiveFilter:
 			# if l == 0:
 				# print self.w[l], self.e, self.buff[len(self.buff)-1-l]
 			# self.w[l] += self.mu*self.e*self.buff[len(self.buff)-l-1] #lastvalue is n
-			self.w[l] += (self.mu/(0.1+ var*self.L))*self.e*self.buff[len(self.buff)-l-1] #last value is n
+			self.w[l] += (self.mu/(self.L*var))*self.e*self.buff[len(self.buff)-l-1] #last value is n
 			# if l == 0:
 				# print self.w[l]
 
@@ -109,13 +112,14 @@ def audio_adaptive(n):
 	cleansignal = audio[1][:,0]
 	cleansignal = cleansignal
 
-	cleansignal = cleansignal[21*8000: 24*8000]
-	# cleansignal = randn(1000)
+	cleansignal = cleansignal[21*8000: 24*8000-1000]/32768.0
+	# cleansignal = randn(1000)/1000
 
 	start_t = time.clock()
 	e = []
 
-	f = AdaptiveFilter(0.08, int(len(filters[n])*1.5), filters[n])
+	f = AdaptiveFilter(0.1, int(len(filters[n])*2), filters[n])
+	print int(len(filters[n])*1.5)
 
 	for i, v in enumerate(cleansignal):
 		f.input(v)
@@ -128,19 +132,59 @@ def audio_adaptive(n):
 
 	print e[-10:,0]
 	# subplot(2, 1, 1)
-	plot(e)
+	plot(e[:,0], label="e")
 	# subplot(2, 1, 2)
-	plot(cleansignal)
+	plot(cleansignal, label="clean")
+	legend()
+	show()
+
+	# print float(f.tot)/f.count
+	print f.w
+
+	wave.write("signal-echo-out.wav", audio[0], e)
+
+	print "---"
+	print stop_t-start_t
+
+audio_adaptive(1)
+
+def audio_adaptive_given(n):
+	audio = wave.read("signal-echo.wav")
+
+	cleansignal = audio[1][:,0]
+	echosignal = audio[1][:,1]
+
+	cleansignal = cleansignal[21*8000: 24*8000]/32768.0
+	echosignal = echosignal[21*8000: 24*8000]/32768.0
+
+	start_t = time.clock()
+	e = []
+
+	f = AdaptiveFilter(0.08, int(len(filters[n])*1.5), filters[n])
+
+	for i, v in enumerate(cleansignal):
+		f.inputgiven(v, echosignal[i])
+		e.append([f.error(), f.error()])
+		f.grad_desc()
+
+	e = array(e)
+
+	stop_t = time.clock()
+
+	print e[-10:,0]
+	# subplot(2, 1, 1)
+	plot(e[:,0], label="e")
+	# subplot(2, 1, 2)
+	plot(cleansignal, label="clean")
+	legend()
 	show()
 
 	# print float(f.tot)/f.count
 
 	wave.write("signal-echo-out.wav", audio[0], e)
 
-	print " --- "
+	print "---"
 	print stop_t-start_t
-
-audio_adaptive(0)
 
 
 def test_adaptive_filter(mu, L, h):

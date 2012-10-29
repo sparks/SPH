@@ -1,5 +1,6 @@
 *.DS_Store
 **Debug/
+**Release/
 ***.CS_/
 *Debug.log
 *.lkf
