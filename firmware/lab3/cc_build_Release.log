@@ -2,37 +2,39 @@
 "C:\CCStudio_v3.1\C6000\cgtools\bin\cl6x" -k -pm -os -o3 -fr"H:/SPH/firmware/lab3/Release" -i"H:/SPH/firmware/lib/dsk6713/include" -d"CHIP_6713" -mw -mv6700 -@"Release.lkf"
 [Configuration1cfg_c.c]
 [main.c]
+"H:\SPH\firmware\lab3\main.c", line 58: warning: variable "y" was declared but never referenced
+"H:\SPH\firmware\lab3\main.c", line 59: warning: variable "z" was declared but never referenced
 [Configuration1cfg.s62]
 <Optimizing>
 <Generating>
 <Assembling>
 {convolve_as_func.sa}
 
-      Loop source line                 : 9
-      Loop closing brace source line   : 14
+      Loop source line                 : 10
+      Loop closing brace source line   : 15
       Known Minimum Trip Count         : 10                    
       Known Maximum Trip Count         : 51                    
       Known Max Trip Count Factor      : 1
-      Loop Carried Dependency Bound(^) : 4
-      Unpartitioned Resource Bound     : 1
-      Partitioned Resource Bound(*)    : 1
+      Loop Carried Dependency Bound(^) : 0
+      Unpartitioned Resource Bound     : 2
+      Partitioned Resource Bound(*)    : 7
       Resource Partition:
                                 A-side   B-side
-      .L units                     1*       0     
-      .S units                     0        1*    
-      .D units                     1*       1*    
-      .M units                     1*       0     
-      .X cross paths               1*       0     
-      .T address paths             1*       1*    
+      .L units                     0        0     
+      .S units                     0        1     
+      .D units                     1        1     
+      .M units                     4        0     
+      .X cross paths               4        0     
+      .T address paths             1        1     
       Long read paths              0        0     
       Long write paths             0        0     
       Logical  ops (.LS)           0        0     (.L or .S unit)
-      Addition ops (.LSD)          0        1     (.L or .S or .D unit)
-      Bound(.L .S .LS)             1*       1*    
-      Bound(.L .S .D .LS .LSD)     1*       1*    
+      Addition ops (.LSD)          1        1     (.L or .S or .D unit)
+      Bound(.L .S .LS)             0        1     
+      Bound(.L .S .D .LS .LSD)     1        1     
 
       Searching for software pipeline schedule at ...
-         ii = 4  Schedule found with 4 iterations in parallel
+         ii = 7  Schedule found with 3 iterations in parallel
 
       Register Usage Table:
           +---------------------------------+
@@ -40,65 +42,65 @@
           |0000000000111111|0000000000111111|
           |0123456789012345|0123456789012345|
           |----------------+----------------|
-       0: | ******         |*   **          |
-       1: | **  *          |*   *           |
-       2: | **  *          |*   *           |
-       3: | **  *          |*   *           |
+       0: | * * **         |**  **          |
+       1: | *   **         |**  *           |
+       2: | *   **         |**  *           |
+       3: | *   **         |**  *           |
+       4: | * * **         |**  **          |
+       5: | * * **         |**  **          |
+       6: | * ****         |**  **          |
           +---------------------------------+
 
       Done
 
       Epilog not entirely removed
-      Collapsed epilog stages     : 2
-
-      Prolog not entirely removed
+      Collapsed epilog stages     : 1
       Collapsed prolog stages     : 2
-
       Minimum required memory pad : 0 bytes
 
-      For further improvement on this loop, try option -mh12
+      For further improvement on this loop, try option -mh8
 
       Minimum safe trip count     : 1
 ----------------------------------------------------------------------------*
         SINGLE SCHEDULED ITERATION
 
-        C24:
-   0              LDW     .D2T2   *B4++,B5          ; |9| 
-     ||           LDW     .D1T1   *A5--,A3          ; |10| 
+        C29:
+   0              LDW     .D2T2   *B4++,B5          ; |10| 
+     ||           LDW     .D1T1   *A5--,A3          ; |11| 
    1              NOP             4
-   5              MPYSP   .M1X    B5,A3,A4          ; |11| 
-   6      [ B0]   ADD     .L2     0xffffffff,B0,B0  ; |13| 
-   7      [ B0]   B       .S2     C24               ; |14| 
-   8              NOP             1
-   9              ADDSP   .L1     A6,A4,A6          ; |12|  ^ 
-  10              NOP             3
-  13              ; BRANCHCC OCCURS {C24}           ; |14| 
+   5              MPYI    .M1X    B5,A3,A4          ; |12| 
+   6              NOP             2
+   8      [ B0]   ADD     .L2     0xffffffff,B0,B0  ; |14| 
+   9      [ B0]   B       .S2     C29               ; |15| 
+  10              NOP             4
+  14              ADD     .S1     A4,A6,A6          ; |13| 
+  15              ; BRANCHCC OCCURS {C29}           ; |15| 
 
-      Loop source line                 : 9
-      Loop closing brace source line   : 14
+      Loop source line                 : 10
+      Loop closing brace source line   : 15
       Known Minimum Trip Count         : 10                    
       Known Maximum Trip Count         : 51                    
       Known Max Trip Count Factor      : 1
       Loop Carried Dependency Bound(^) : 4
-      Unpartitioned Resource Bound     : 1
-      Partitioned Resource Bound(*)    : 1
+      Unpartitioned Resource Bound     : 2
+      Partitioned Resource Bound(*)    : 7
       Resource Partition:
                                 A-side   B-side
-      .L units                     1*       0     
-      .S units                     0        1*    
-      .D units                     1*       1*    
-      .M units                     1*       0     
-      .X cross paths               1*       0     
-      .T address paths             1*       1*    
+      .L units                     0        0     
+      .S units                     0        1     
+      .D units                     1        1     
+      .M units                     4        0     
+      .X cross paths               4        0     
+      .T address paths             1        1     
       Long read paths              0        0     
       Long write paths             0        0     
       Logical  ops (.LS)           0        0     (.L or .S unit)
-      Addition ops (.LSD)          0        1     (.L or .S or .D unit)
-      Bound(.L .S .LS)             1*       1*    
-      Bound(.L .S .D .LS .LSD)     1*       1*    
+      Addition ops (.LSD)          1        1     (.L or .S or .D unit)
+      Bound(.L .S .LS)             0        1     
+      Bound(.L .S .D .LS .LSD)     1        1     
 
       Searching for software pipeline schedule at ...
-         ii = 4  Schedule found with 4 iterations in parallel
+         ii = 7  Schedule found with 3 iterations in parallel
 
       Register Usage Table:
           +---------------------------------+
@@ -106,65 +108,65 @@
           |0000000000111111|0000000000111111|
           |0123456789012345|0123456789012345|
           |----------------+----------------|
-       0: | ******         |*   **          |
-       1: | **  *          |*   *           |
-       2: | **  *          |*   *           |
-       3: | **  *          |*   *           |
+       0: | * * **         |**  **          |
+       1: | *   **         |**  *           |
+       2: | *   **         |**  *           |
+       3: | *   **         |**  *           |
+       4: | * * **         |**  **          |
+       5: | * * **         |**  **          |
+       6: | * ****         |**  **          |
           +---------------------------------+
 
       Done
 
       Epilog not entirely removed
-      Collapsed epilog stages     : 2
-
-      Prolog not entirely removed
+      Collapsed epilog stages     : 1
       Collapsed prolog stages     : 2
-
       Minimum required memory pad : 0 bytes
 
-      For further improvement on this loop, try option -mh12
+      For further improvement on this loop, try option -mh8
 
       Minimum safe trip count     : 1
 ----------------------------------------------------------------------------*
         SINGLE SCHEDULED ITERATION
 
-        C37:
-   0              LDW     .D2T2   *B4++,B5          ; |9| 
-     ||           LDW     .D1T1   *A5--,A3          ; |10| 
+        C42:
+   0              LDW     .D2T2   *B4++,B5          ; |10|  ^ 
+     ||           LDW     .D1T1   *A5--,A3          ; |11|  ^ 
    1              NOP             4
-   5              MPYSP   .M1X    B5,A3,A4          ; |11| 
-   6      [ B0]   ADD     .L2     0xffffffff,B0,B0  ; |13| 
-   7      [ B0]   B       .S2     C37               ; |14| 
-   8              NOP             1
-   9              ADDSP   .L1     A6,A4,A6          ; |12|  ^ 
-  10              NOP             3
-  13              ; BRANCHCC OCCURS {C37}           ; |14| 
+   5              MPYI    .M1X    B5,A3,A4          ; |12|  ^ 
+   6              NOP             2
+   8      [ B0]   ADD     .L2     0xffffffff,B0,B0  ; |14| 
+   9      [ B0]   B       .S2     C42               ; |15| 
+  10              NOP             4
+  14              ADD     .S1     A4,A6,A6          ; |13| 
+  15              ; BRANCHCC OCCURS {C42}           ; |15| 
 
-      Loop source line                 : 9
-      Loop closing brace source line   : 14
+      Loop source line                 : 10
+      Loop closing brace source line   : 15
       Known Minimum Trip Count         : 10                    
       Known Maximum Trip Count         : 51                    
       Known Max Trip Count Factor      : 1
       Loop Carried Dependency Bound(^) : 4
-      Unpartitioned Resource Bound     : 1
-      Partitioned Resource Bound(*)    : 1
+      Unpartitioned Resource Bound     : 2
+      Partitioned Resource Bound(*)    : 7
       Resource Partition:
                                 A-side   B-side
-      .L units                     1*       0     
-      .S units                     0        1*    
-      .D units                     1*       1*    
-      .M units                     1*       0     
-      .X cross paths               1*       0     
-      .T address paths             1*       1*    
+      .L units                     0        0     
+      .S units                     0        1     
+      .D units                     1        1     
+      .M units                     4        0     
+      .X cross paths               4        0     
+      .T address paths             1        1     
       Long read paths              0        0     
       Long write paths             0        0     
       Logical  ops (.LS)           0        0     (.L or .S unit)
-      Addition ops (.LSD)          0        1     (.L or .S or .D unit)
-      Bound(.L .S .LS)             1*       1*    
-      Bound(.L .S .D .LS .LSD)     1*       1*    
+      Addition ops (.LSD)          1        1     (.L or .S or .D unit)
+      Bound(.L .S .LS)             0        1     
+      Bound(.L .S .D .LS .LSD)     1        1     
 
       Searching for software pipeline schedule at ...
-         ii = 4  Schedule found with 4 iterations in parallel
+         ii = 7  Schedule found with 3 iterations in parallel
 
       Register Usage Table:
           +---------------------------------+
@@ -172,42 +174,42 @@
           |0000000000111111|0000000000111111|
           |0123456789012345|0123456789012345|
           |----------------+----------------|
-       0: | ******         |*   **          |
-       1: | **  *          |*   *           |
-       2: | **  *          |*   *           |
-       3: | **  *          |*   *           |
+       0: | * * **         |**  **          |
+       1: | *   **         |**  *           |
+       2: | *   **         |**  *           |
+       3: | *   **         |**  *           |
+       4: | * * **         |**  **          |
+       5: | * * **         |**  **          |
+       6: | * ****         |**  **          |
           +---------------------------------+
 
       Done
 
       Epilog not entirely removed
-      Collapsed epilog stages     : 2
-
-      Prolog not entirely removed
+      Collapsed epilog stages     : 1
       Collapsed prolog stages     : 2
-
       Minimum required memory pad : 0 bytes
 
-      For further improvement on this loop, try option -mh12
+      For further improvement on this loop, try option -mh8
 
       Minimum safe trip count     : 1
 ----------------------------------------------------------------------------*
         SINGLE SCHEDULED ITERATION
 
-        C50:
-   0              LDW     .D2T2   *B4++,B5          ; |9| 
-     ||           LDW     .D1T1   *A5--,A3          ; |10| 
+        C55:
+   0              LDW     .D2T2   *B4++,B5          ; |10|  ^ 
+     ||           LDW     .D1T1   *A5--,A3          ; |11|  ^ 
    1              NOP             4
-   5              MPYSP   .M1X    B5,A3,A4          ; |11| 
-   6      [ B0]   ADD     .L2     0xffffffff,B0,B0  ; |13| 
-   7      [ B0]   B       .S2     C50               ; |14| 
-   8              NOP             1
-   9              ADDSP   .L1     A6,A4,A6          ; |12|  ^ 
-  10              NOP             3
-  13              ; BRANCHCC OCCURS {C50}           ; |14| 
+   5              MPYI    .M1X    B5,A3,A4          ; |12|  ^ 
+   6              NOP             2
+   8      [ B0]   ADD     .L2     0xffffffff,B0,B0  ; |14| 
+   9      [ B0]   B       .S2     C55               ; |15| 
+  10              NOP             4
+  14              ADD     .S1     A4,A6,A6          ; |13| 
+  15              ; BRANCHCC OCCURS {C55}           ; |15| 
 
 [Linking...] "C:\CCStudio_v3.1\C6000\cgtools\bin\cl6x" -@"Release.lkf"
 <Linking>
 
 Build Complete,
-  0 Errors, 0 Warnings, 0 Remarks.
+  0 Errors, 2 Warnings, 0 Remarks.

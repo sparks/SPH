@@ -44,7 +44,7 @@ volatile Uint8 input_ready = 0, output_ready = 0, channel_flag = 0;
  * contains main run loop
  */
 int main() {
-	extern int convolve_as_func(int w[], int x[], int n);
+	extern long long convolve_as_func(int w[], int x[], int n);
 	/*
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
@@ -55,6 +55,8 @@ int main() {
 
 	int w[10] = {-7726, -5544, -3805, -919, -5055, 3105, -8432, 7087, 6867, 4660};
 	int x[10] = {1439, 9921, -1472, -9800, -3391, 5708, 6408, 1202, -2568, 3993};
+	short y[10] = {-7726, -5544, -3805, -919, -5055, 3105, -8432, 7087, 6867, 4660};
+	short z[10] = {1439, 9921, -1472, -9800, -3391, 5708, 6408, 1202, -2568, 3993};
 	int n = 10;
 
 	start = clock();
@@ -146,7 +148,7 @@ void transmit_interrupt(void) {
 	if(output_ready <= 1) output_ready++;
 }
 
-int convolve(int w[], int x[], int n) {
+long long convolve(int w[], int x[], int n) {
 	int i = 0;
 	int result = 0;
 
@@ -157,7 +159,7 @@ int convolve(int w[], int x[], int n) {
 	return result;
 }
 
-int convolve_opt(int w[restrict], int x[restrict], int n) {
+long long convolve_opt(int w[restrict], int x[restrict], int n) {
 	int i = 0;
 	int result = 0;
 

@@ -1,15 +1,16 @@
-; convolve_asm_func.sa
+; convolve_asm_func.sa 
 
 					.global _convolve_as_func				;function def
-_convolve_as_func: 	.cproc	w, x, count					;arguments
-					.reg	a, b, prod, sum			;registers to use
+_convolve_as_func 	.cproc	w, x, count					;arguments
+					.reg	a, b, prod, sum, last			;registers to use
+					sub count,1,last
 					zero	sum						;init sum to zero
-					addaw	x,count,x				;gets the pointer to the last value of x							
+					addaw	x,last,x				;gets the pointer to the last value of x							
 loop:				.trip 10, 51					;between 10 and 51 itterations
 					ldw	*w++,a
 					ldw	*x--,b
-					mpysp	a,b,prod
-					addsp sum,prod,sum
+					mpyi	a,b,prod
+					add prod,sum,sum
 	[count]			sub count,1,count
 	[count]			b	loop
 					.return	sum

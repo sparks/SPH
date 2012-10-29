@@ -24,7 +24,7 @@ Source="Configuration1cfg.s62"
 Source="Configuration1cfg_c.c"
 
 ["Compiler" Settings: "Debug"]
-Options=-g -fr"$(Proj_dir)\Debug" -i"H:\SPH\firmware\lib\dsk6713\include" -d"_DEBUG" -d"CHIP_6713" -mv6700
+Options=-g -k -pm -o3 -fr"$(Proj_dir)\Debug" -i"H:\SPH\firmware\lib\dsk6713\include" -d"_DEBUG" -d"CHIP_6713" -mw -mv6700
 
 ["Compiler" Settings: "Release"]
 Options=-o3 -fr"$(Proj_dir)\Release" -mv6700
