@@ -27,8 +27,10 @@ FILE *textfile;
 int out1, out2, out3, out4;
 
 //test values
-int w[10] = {-7726, -5544, -3805, -919, -5055, 3105, -8432, 7087, 6867, 4660};
-int x[16] = {-2568, 3993, 0, 0, 0, 0, 0, 0, 1439, 9921, -1472, -9800, -3391, 5708, 6408, 1202};
+//int w[10] = {-7726, -5544, -3805, -919, -5055, 3105, -8432, 7087, 6867, 4660};
+//int x[16] = {-2568, 3993, 0, 0, 0, 0, 0, 0, 1439, 9921, -1472, -9800, -3391, 5708, 6408, 1202};
+int w[10] = {0,0,0,0,0,0,0,0,0,0};
+int x[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0};
 #pragma DATA_ALIGN(x, 64)
 
 int n = 10;
@@ -57,22 +59,24 @@ int main() {
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
 	*/
-	long long a = 1000<<16;
-	long long b = 1000<<16;
+	int a = 1<<31;
+	int b = 2000001;
 	int c = 0;
 
 	clock_t start, stop, overhead;
 
 	int n = 10;
 	
-	c = (a*b)>>31;
+	c = ((long long)a*(long long)b)>>31;
 	printf("%d\n", c);
 
 	start = clock();
 	stop = clock();
 	overhead = stop - start;
 	
-	
+	w[1] = a;
+	x[0] = a;
+
 	start = clock();
 	out1 = convolve(x, w, 1, n);
 	stop = clock();
@@ -164,10 +168,20 @@ void transmit_interrupt(void) {
 
 int convolve(int x[], int w[], int x_idx, int w_length) {
 	int i = 0;
+	int a, b;
+	long long _a, _b;
+	long long product;
+	int prd;
 	int result = 0;
 
 	for(; i < w_length; i++) {
-		result += (long long)w[i]*(long long)x[x_idx];
+		a = w[i];
+		b = x[x_idx];
+		_a= (long long)a;
+		_b= (long long)b;
+		product = _a*_b;
+		prd = product>>31;
+		result += prd;
 		x_idx--;
 		if(x_idx < 0)x_idx = 15;
 	}
