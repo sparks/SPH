@@ -5,8 +5,6 @@
 
 #include "main.h"
 
-//#define TEXT_FILENAME "pulserecord.txt" //output file
-
 DSK6713_AIC23_Config config = {
     0x0017, /* 0 DSK6713_AIC23_LEFTINVOL Left line input channel volume */
     0x0017, /* 1 DSK6713_AIC23_RIGHTINVOL Right line input channel volume */
@@ -22,31 +20,26 @@ DSK6713_AIC23_Config config = {
 
 DSK6713_AIC23_CodecHandle hCodec;
 
-FILE *textfile;
+//Adaptive Filter Variables
+#define mu 8.14748e8
+#define L 51
 
-int out1, out2, out3, out4;
+int error = 0;
+Int16 sig_error = 0;
 
-//test values
-//int w[10] = {-7726, -5544, -3805, -919, -5055, 3105, -8432, 7087, 6867, 4660};
-//int x[16] = {-2568, 3993, 0, 0, 0, 0, 0, 0, 1439, 9921, -1472, -9800, -3391, 5708, 6408, 1202};
-int w[10] = {0,0,0,0,0,0,0,0,0,0};
-int x[16] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0};
-#pragma DATA_ALIGN(x, 64)
+int w[L];
 
-int n = 10;
+int buffer_index = 0;
+int buffer[L];
 
-Uint32 left = 0, right = 0;
-Int16 mix = 0, audio_out = 0;
+Uint32 in_tmp_left = 0, in_tmp_right = 0;
+Int16 in_left = 0, in_right = 0, out_left = 0, out_right = 0;
 
 // input and output sample flags
 // used to communicate between the main run loop and the interrupts
 // to know when input/output samples are ready to be processes/output
 // channel flag is used to switch between buffering left and right channels
-volatile Uint8 input_ready = 0, output_ready = 0, channel_flag = 0;
-
-//#define FFT_BUFF_LEN 100
-//far float fft_buff[FFT_BUFF_LEN][FFTSIZE/2];
-//int fft_buff_index = 0;
+volatile Uint8 input_ready = 0, output_ready = 0, in_channel_flag = 0, out_channel_flag = 0;
 
 /**
  * main method
@@ -54,117 +47,131 @@ volatile Uint8 input_ready = 0, output_ready = 0, channel_flag = 0;
  */
 int main() {
 	extern int convolve_as_func(int x[], int w[], int x_idx, int w_length);
-	/*
+	
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
-	*/
-	int a = 1<<31;
-	int b = 2000001;
-	int c = 0;
 
-	clock_t start, stop, overhead;
-
-	int n = 10;
-	
-	c = ((long long)a*(long long)b)>>31;
-	printf("%d\n", c);
-
-	start = clock();
-	stop = clock();
-	overhead = stop - start;
-	
-	w[1] = a;
-	x[0] = a;
-
-	start = clock();
-	out1 = convolve(x, w, 1, n);
-	stop = clock();
-	printf("convovle no opt cycles: %d\n", stop - start - overhead);
-
-	/*
-	start = clock();
-	out2 = convolve_opt(w, x, n);
-	stop = clock();
-	printf("convovle opt cycles: %d\n", stop - start - overhead);
-	*/
-	start = clock();
-	out3 = convolve_as_func(x, w, 1, n);
-	stop = clock();
-	printf("convovle as cycles: %d\n", stop - start - overhead);
-
-	x[2] = -5458;
-	out4 = convolve_as_func(x, w, 2, n);
-
-    /* Open the output file and quit if fail */
-	/*
-	textfile = fopen(TEXT_FILENAME,"wb");
-	if (!textfile) {
-		return 0;
-	}
-	*/
-	
 	// enable interrupts
-	/*
 	IRQ_globalEnable();
 	IRQ_enable(IRQ_EVT_RINT1);
 	IRQ_enable(IRQ_EVT_XINT1);
-	*/
+	
+	reset();
 
 	// the first write is needed to trigger the transmit interrupt
-	/*while(!DSK6713_AIC23_write(hCodec, 0));
-
-	channel_flag = 1;
+	while(!DSK6713_AIC23_write(hCodec, 0));
+	in_channel_flag = 1;
+	out_channel_flag = 1;
 
 	while(1) {
 		if(input_ready) {
-			process_sample(mix);
+			sig_error = process_sample(in_left, in_right);
 			input_ready = 0;
 		}
-		if(output_ready > 1) {
-			//audio_out = generate_pulse_sample();
-			//audio_out = mix;
+
+		if(output_ready) {
+			out_left = in_left;
+			out_right = sig_error;
 			output_ready = 0;
 		}
 	};
-	*/
+	
 
 	/* The program will never exit this loop */
 	/* However, if you _do_ exit the loop (say, using a break
 	 * statement) close the D/A converter properly */
-	 /*
 	DSK6713_AIC23_closeCodec(hCodec);
-	fclose(textfile); //And the textfile
-	*/
-
 	exit();
-	
 }
 
+void reset(void) {
+	int i;
 
-void process_sample(Int16 x) {
-
+	for(i = 0;i < L;i++) {
+		w[i] = 0;
+		buffer[i] = 0;
+	}
 }
 
+Int16 process_sample(Int16 clean, Int16 echo) {
+	int yw;
+
+	buffer[buffer_index] = clean << 16; //Zero error introduced
+
+	buffer_index++;
+	if(buffer_index >= L) buffer_index = 0;
+
+	yw = convolve_c(w, buffer, buffer_index, L); //Error indroduced and compounded with grad_desc
+
+	error = (echo << 16) - yw; //No compounding error
+
+	grad_desc(); //Error indroduced and compounded with grad_desc
+
+	return error >> 16;
+}
+
+void grad_desc(void) {
+	int tmp;
+	int i, tmp_b_index;
+
+	tmp_b_index = buffer_index-1;
+
+	for(i = 0;i < L;i++) {
+		if(tmp_b_index < 0) tmp_b_index = 0;
+		
+		tmp = multiply(mu, error);
+		tmp = multiply(tmp, buffer[tmp_b_index]);
+		tmp += tmp + w[i];
+		w[i] = tmp;
+
+		tmp_b_index--;
+	}
+}
+
+int multiply(int a, int b) {
+	long long t1, t2;
+	t1 = a;
+	t2 = b;
+
+	return (t1 * t2) >> 31;
+}
 
 /** interrupts **/
-void receive_interrupt(void) {
-	if(channel_flag){
-		DSK6713_AIC23_read(hCodec, &left);
-		channel_flag = 0;
-	} else {
-		DSK6713_AIC23_read(hCodec, &right);
-		mix = ((Int16)left + (Int16)right)/2.0;
-		channel_flag = 1;
-	}
 
-	input_ready = 1;
+void receive_interrupt(void) {
+	if(in_channel_flag){
+		DSK6713_AIC23_read(hCodec, &in_tmp_left);
+
+		in_left = (Int16)in_tmp_left;
+
+		in_channel_flag = 0;
+		input_ready = 1;
+	} else {
+		DSK6713_AIC23_read(hCodec, &in_tmp_right);
+
+		in_right = (Int16)in_tmp_right;
+
+		in_channel_flag = 1;
+		input_ready = 1;
+	}
 }
 
 void transmit_interrupt(void) {
-	DSK6713_AIC23_write(hCodec, audio_out & 0xFFFF);
-	if(output_ready <= 1) output_ready++;
+	if(out_channel_flag){
+		DSK6713_AIC23_write(hCodec, out_left & 0xFFFF);
+
+		out_channel_flag = 0;
+		output_ready = 1;
+	} else {
+		DSK6713_AIC23_write(hCodec, out_right & 0xFFFF);
+
+		out_channel_flag = 1;
+		output_ready = 1;
+	}
 }
+
+/** Convolutions **/
 
 int convolve(int x[], int w[], int x_idx, int w_length) {
 	int i = 0;
@@ -189,7 +196,7 @@ int convolve(int x[], int w[], int x_idx, int w_length) {
 	return result;
 }
 
-int convolve_opt(short w[restrict], short x[restrict], int n) {
+int convolve_opt(Int16 w[restrict], Int16 x[restrict], int n) {
 	int i = 0;
 	int result = 0;
 
@@ -201,4 +208,17 @@ int convolve_opt(short w[restrict], short x[restrict], int n) {
 	return result;
 }
 
+int convolve_c(int* a, int* b, int b_offset, int len) {
+	int i;
+	int result;
+	
+	result = 0;
+ 
+	for(i = 0;i < len;i++) {
+		if(b_offset >= len) b_offset = 0;
+		result += multiply(a[len-1-i], b[b_offset]);
+		b_offset++;
+	}
 
+	return result;
+}
