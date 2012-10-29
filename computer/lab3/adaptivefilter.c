@@ -13,6 +13,8 @@
 #define ECHO_FILENAME "signal-echoR.raw"
 #define OUTPUT_FILENAME "signal-echo-out.raw"
 
+#define DYN_MU_ENABLE
+
 // Prototypes
 void reset(void);
 void process_block(short*, short*, short*, int);
@@ -29,7 +31,8 @@ short ECHO_IN[BLOCKSIZE];
 short DATA_OUT[BLOCKSIZE];
 
 //Adaptive Filter Variables
-#define mu 0.03
+#define mu 0.01
+#define dyn_mu 0.01
 #define L 76
 
 float error = 0;
@@ -38,6 +41,9 @@ float w[L];
 
 int buffer_index = 0;
 float buffer[L];
+
+float muMax = 0;
+float muMin = 10000000;
 
 int main() {
 	FILE *cleanfile, *echofile, *outfile;
@@ -74,6 +80,13 @@ int main() {
 		fwrite(DATA_OUT, sizeof(short), datacount, outfile);
 	} while (datacount == BLOCKSIZE);
 
+	printf("%f\n", muMin);
+	printf("%f\n", muMax);
+	int i;
+	for(i = 0;i < L;i++) {
+		printf("%f,", w[i]);
+	}
+	printf("\n");
 
     /* Close the input and output files, this also flushes all
     * pending I/O, so that other programs can access the data. */
@@ -144,14 +157,24 @@ void grad_desc(void) {
 	float var;
 	int i, tmp_b_index;
 
+	#ifdef DYN_MU_ENABLE
 	var = variance(buffer, L);
 	if(!var) return; //Void zero variance
+	#endif
 
 	tmp_b_index = buffer_index-1;
 
+	float mu_adj = mu / (L*var);
+	if(mu_adj < muMin) muMin = mu_adj;
+	if(mu_adj > muMax) muMax = mu_adj;
+
 	for(i = 0;i < L;i++) {
 		if(tmp_b_index < 0) tmp_b_index = 0;
-		w[i] += mu / (L*var) * error * buffer[tmp_b_index];
+		#ifdef DYN_MU_ENABLE
+		w[i] += dyn_mu / (L*var) * error * buffer[tmp_b_index];
+		#else
+		w[i] += mu * error * buffer[tmp_b_index];
+		#endif
 		tmp_b_index--;
 	}
 }
