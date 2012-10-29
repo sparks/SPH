@@ -93,6 +93,8 @@ int main() {
 		return 0;
 	}
 
+	reset();
+	
 	//Read in NN chunks
 	do {
 		datacount = fread(CLEAN_IN, sizeof(short), BLOCKSIZE, cleanfile);
