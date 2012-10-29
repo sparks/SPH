@@ -15,9 +15,17 @@
 
 #endif
 
-int convolve(int x[], int w[], int x_idx, int w_length);
-int convolve_opt(short w[], short x[], int n);
 void receive_interrupt(void);
 void transmit_interrupt(void);
-void process_sample(Int16 x);
 
+int convolve(int x[], int w[], int x_idx, int w_length);
+int convolve_opt(Int16 w[], Int16 x[], int n);
+int convolve_c(int*, int*, int, int);
+
+int multiply(int, int);
+void reset(void);
+
+Int16 process_sample(Int16, Int16);
+
+void process_block(Int16*, Int16*, Int16*, int);
+void grad_desc(void);
