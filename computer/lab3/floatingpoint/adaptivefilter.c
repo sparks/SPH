@@ -13,7 +13,7 @@
 #define ECHO_FILENAME "signal-echoR.raw"
 #define OUTPUT_FILENAME "signal-echo-out.raw"
 
-#define DYN_MU_ENABLE
+// #define DYN_MU_ENABLE
 
 // Prototypes
 void reset(void);
@@ -45,6 +45,12 @@ float buffer[L];
 
 float muMax = 0;
 float muMin = 10000000;
+
+float dconvMax = 0;
+float dconvMin = 10000000;
+
+float rconvMax = 0;
+float rconvMin = 10000000;
 
 float convMax = 0;
 float convMin = 10000000;
@@ -87,6 +93,8 @@ int main() {
 		return 0;
 	}
 
+	reset();
+	
 	//Read in NN chunks
 	do {
 		datacount = fread(CLEAN_IN, sizeof(short), BLOCKSIZE, cleanfile);
@@ -105,6 +113,12 @@ int main() {
 
 	printf("\033[33;1mdwMin %0.64f\n", dwMin);
 	printf("\033[33;1mdwMax %0.64f\n\n", dwMax);
+
+	printf("\033[33;1mdconvMin %0.64f\n", dconvMin);
+	printf("\033[33;1mdconvMax %0.64f\n\n", dconvMax);
+
+	printf("\033[33;1mrconvMin %0.64f\n", rconvMin);
+	printf("\033[33;1mrconvMax %0.64f\n\n", rconvMax);
 
 	printf("\033[33;1mconvMin %0.64f\n", convMin);
 	printf("\033[33;1mconvMax %0.64f\n\n", convMax);
@@ -174,13 +188,18 @@ float process_sample(float clean, float echo) {
 
 float convolve(float* a, float* b, int b_offset, int len) {
 	int i;
-	float result;
+	float result, tmp;
 	
 	result = 0;
 
 	for(i = 0;i < len;i++) {
 		if(b_offset >= len) b_offset = 0;
-		result += a[len-1-i] * b[b_offset];
+		tmp = a[len-1-i] * b[b_offset];
+		if(abs(tmp) > dconvMax) dconvMax = abs(tmp);
+		if(abs(tmp) < dconvMin || abs(tmp) != 0) dconvMin = abs(tmp);
+		result += tmp;
+		if(abs(result) > rconvMax) rconvMax = abs(result);
+		if(abs(result) < rconvMin || abs(tmp) != 0) rconvMin = abs(result);
 		b_offset++;
 	}
 
