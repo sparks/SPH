@@ -22,7 +22,7 @@ DSK6713_AIC23_CodecHandle hCodec;
 
 //Adaptive Filter Variables
 #define mu 8.14748e8
-#define L 51
+#define L 64 //Length of the adaptive filter, must be less than BUFFER_LEN.
 
 //buffer length; must be a power of 2 for hardwar ciruclar addressing mode to function correctly
 #define BUFFER_LEN 64
@@ -128,7 +128,7 @@ Int16 process_sample(Int16 clean, Int16 echo) {
 	buffer[buffer_index] = clean << 16; //Zero error introduced
 
 	//start = clock();	//saves the clock count before the function call; used for performance profiling
-	yw =  convolve_as_func(buffer, w, buffer_index, L); //Error indroduced and compounded with grad_desc
+	yw =  convolve_as_func(buffer, w, buffer_index, L); //Possible Error introduced and compounded with grad_desc
 	//end = clock();	//saves the clock count after the function call; used for performance profiling
 	//printf("%d\n", end - start - diff);	//prints the difference in clock count (including the time it takes to make the clock function call)
 											//used for performance profiling
@@ -136,9 +136,9 @@ Int16 process_sample(Int16 clean, Int16 echo) {
 	buffer_index++;
 	if(buffer_index >= 64) buffer_index = 0;
 
-	error = (echo << 16) - yw; //No compounding error
+	error = (echo << 16) - yw; //No compounding error introduced here
 
-	grad_desc(); //Error indroduced and compounded with grad_desc
+	grad_desc(); //Possible Error introduced and compounded 
 
 	return error >> 16;
 }
