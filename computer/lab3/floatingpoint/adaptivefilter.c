@@ -13,7 +13,7 @@
 #define ECHO_FILENAME "signal-echoR.raw"
 #define OUTPUT_FILENAME "signal-echo-out.raw"
 
-// #define DYN_MU_ENABLE
+#define DYN_MU_ENABLE
 
 // Prototypes
 void reset(void);
@@ -34,7 +34,7 @@ short DATA_OUT[BLOCKSIZE];
 //Adaptive Filter Variables
 #define mu 0.01
 #define dyn_mu 0.01
-#define L 76
+#define L 64
 
 float error = 0;
 
@@ -224,7 +224,7 @@ void grad_desc(void) {
 	#endif
 
 	for(i = 0;i < L;i++) {
-		if(tmp_b_index < 0) tmp_b_index = 0;
+		if(tmp_b_index < 0) tmp_b_index = L-1;
 		#ifdef DYN_MU_ENABLE
 		dw = dyn_mu / (L*var) * error * buffer[tmp_b_index];
 		w[i] += dw;
