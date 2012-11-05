@@ -15,17 +15,48 @@
 
 #endif
 
+/* interrupts */
+
+/**
+ * gets the left and right channel input then sets the data ready flag
+ */
 void receive_interrupt(void);
+/**
+ * outputs the left and right channel then sets the output ready flag
+ */
 void transmit_interrupt(void);
 
-int convolve(int x[], int w[], int x_idx, int w_length);
-int convolve_opt(Int16 w[], Int16 x[], int n);
-int convolve_c(int*, int*, int, int);
+/**
+ * C convolution implementation
+ * input:
+ *	circular input buffer,
+ *	filter coefficient array,
+ *	index of newsest input buffer value,
+ * 	length of filter
+ * output: convolution result
+ */
+int convolve_c(int x[], int w[], int x_idx, int w_length);
 
+/**
+ * 32-bit fixed point multiply function
+ * casts the input to 64-bit ints in case the ouput is greater than can be stored in a 32 bit int
+ */
 int multiply(int, int);
+
+/**
+ * reset function to zero the input buffer
+ */
 void reset(void);
 
+/**
+ * Processes one input sample and returns one output sample
+ * The first argument is the clean input channel
+ * the second is the echo (noise) input channel
+ */
 Int16 process_sample(Int16, Int16);
 
-void process_block(Int16*, Int16*, Int16*, int);
+/**
+ * Recalculates the filter coefficients based on the new error
+ * and the adaptive filter variables
+ */
 void grad_desc(void);
