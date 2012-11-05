@@ -24,17 +24,26 @@ DSK6713_AIC23_CodecHandle hCodec;
 #define mu 8.14748e8
 #define L 51
 
+//buffer length; must be a power of 2 for hardwar ciruclar addressing mode to function correctly
+#define BUFFER_LEN 64
+
 int error = 0;
 Int16 sig_error = 0;
 
+//array to store the filter coefficients
 int w[L];
 
+//input buffer variables
 int buffer_index = 0;
-int buffer[64];
-#pragma DATA_ALIGN(buffer, 256)	//data must be aligned for circular buffering
+int buffer[BUFFER_LEN];
+#pragma DATA_ALIGN(buffer, 256)	//256 = 64 * 4 bytes; data must be byte aligned for circular addressing mode
 
+//input and output variables
 Uint32 in_tmp_left = 0, in_tmp_right = 0;
 Int16 in_left = 0, in_right = 0, out_left = 0, out_right = 0;
+
+//clock variables used for profiling
+clock_t start, end, diff;
 
 // input and output sample flags
 // used to communicate between the main run loop and the interrupts
@@ -47,6 +56,7 @@ volatile Uint8 input_ready = 0, output_ready = 0, in_channel_flag = 0, out_chann
  * contains main run loop
  */
 int main() {
+	//prototype for linear assembly convolution function
 	extern int convolve_as_func(int x[], int w[], int x_idx, int w_length);
 	
 	DSK6713_init();
@@ -58,7 +68,14 @@ int main() {
 	IRQ_enable(IRQ_EVT_RINT1);
 	IRQ_enable(IRQ_EVT_XINT1);
 	
-	reset();
+	reset();	// init the input buffer to zeros
+
+	// get the time to make a clock() funciton call; used only for profiling
+	/*
+	start = clock();
+	end = clock();
+	diff = end - start;
+	*/
 
 	// the first write is needed to trigger the transmit interrupt
 	while(!DSK6713_AIC23_write(hCodec, 0));
@@ -67,10 +84,12 @@ int main() {
 
 	while(1) {
 		if(input_ready) {
+			//process sample when input is ready
 			sig_error = process_sample(in_left, in_right);
 			input_ready = 0;
 		}
 
+		// set output when ready
 		if(output_ready) {
 			out_left = in_left;
 			out_right = sig_error;
@@ -86,21 +105,33 @@ int main() {
 	exit();
 }
 
+/**
+ * reset function to zero the input buffer
+ */
 void reset(void) {
 	int i;
 
-	for(i = 0;i < 64;i++) {
+	for(i = 0;i < BUFFER_LEN;i++) {
 		if(i < L) w[i] = 0;
 		buffer[i] = 0;
 	}
 }
 
+/**
+ * Processes one input sample and returns one output sample
+ * The first argument is the clean input channel
+ * the second is the echo (noise) input channel
+ */
 Int16 process_sample(Int16 clean, Int16 echo) {
 	int yw;
 
 	buffer[buffer_index] = clean << 16; //Zero error introduced
 
+	//start = clock();	//saves the clock count before the function call; used for performance profiling
 	yw =  convolve_as_func(buffer, w, buffer_index, L); //Error indroduced and compounded with grad_desc
+	//end = clock();	//saves the clock count after the function call; used for performance profiling
+	//printf("%d\n", end - start - diff);	//prints the difference in clock count (including the time it takes to make the clock function call)
+											//used for performance profiling
 
 	buffer_index++;
 	if(buffer_index >= 64) buffer_index = 0;
@@ -112,15 +143,24 @@ Int16 process_sample(Int16 clean, Int16 echo) {
 	return error >> 16;
 }
 
+/**
+ * Recalculates the filter coefficients based on the new error
+ * and the adaptive filter variables
+ */
 void grad_desc(void) {
 	int tmp;
 	int i, tmp_b_index;
 
+	//grad_desc is called after the buffer index is incremented
+	//decrement the index to get the latest value
 	tmp_b_index = buffer_index-1;
 
 	for(i = 0;i < L;i++) {
-		if(tmp_b_index < 0) tmp_b_index = 0;
+		//circular input buffer, so wrap arround after the 0th index
+		if(tmp_b_index < 0) tmp_b_index = BUFFER_LEN - 1;
 		
+		//update the filter coefficients
+		//w[w_idx] = mu*error*x[x_idx]+w[w_idx]
 		tmp = multiply(mu, error);
 		tmp = multiply(tmp, buffer[tmp_b_index]);
 		tmp += tmp + w[i];
@@ -130,6 +170,10 @@ void grad_desc(void) {
 	}
 }
 
+/**
+ * 32-bit fixed point multiply function
+ * casts the input to 64-bit ints in case the ouput is greater than can be stored in a 32 bit int
+ */
 int multiply(int a, int b) {
 	long long t1, t2;
 	t1 = a;
@@ -140,6 +184,9 @@ int multiply(int a, int b) {
 
 /** interrupts **/
 
+/**
+ * gets the left and right channel input then sets the data ready flag
+ */
 void receive_interrupt(void) {
 	if(in_channel_flag){
 		DSK6713_AIC23_read(hCodec, &in_tmp_left);
@@ -158,6 +205,9 @@ void receive_interrupt(void) {
 	}
 }
 
+/**
+ * outputs the left and right channel then sets the output ready flag
+ */
 void transmit_interrupt(void) {
 	if(out_channel_flag){
 		DSK6713_AIC23_write(hCodec, out_left & 0xFFFF);
@@ -172,54 +222,30 @@ void transmit_interrupt(void) {
 	}
 }
 
-/** Convolutions **/
-
-int convolve(int x[], int w[], int x_idx, int w_length) {
-	int i = 0;
-	int a, b;
-	long long _a, _b;
-	long long product;
-	int prd;
-	int result = 0;
-
-	for(; i < w_length; i++) {
-		a = w[i];
-		b = x[x_idx];
-		_a= (long long)a;
-		_b= (long long)b;
-		product = _a*_b;
-		prd = product>>31;
-		result += prd;
-		x_idx--;
-		if(x_idx < 0)x_idx = 15;
-	}
-
-	return result;
-}
-
-int convolve_opt(Int16 w[restrict], Int16 x[restrict], int n) {
-	int i = 0;
-	int result = 0;
-
-	#pragma MUST_ITERATE(10);
-	for(; i < n; i++) {
-		result += w[i]*x[n-1-i];
-	}
-
-	return result;
-}
-
-int convolve_c(int* a, int* b, int b_offset, int len) {
+/**
+ * C convolution implementation
+ * input:
+ *	circular input buffer,
+ *	filter coefficient array,
+ *	index of newsest input buffer value,
+ * 	length of filter
+ * output: convolution result
+ *
+ * note: the restrict keyword is a compiler directive to help with optimization
+ */
+int convolve_c(int x[restrict], int w[restrict], int x_idx, int w_length) {
 	int i;
-	int result;
-	
-	result = 0;
+	int result = 0;
  
-	for(i = 0;i < len;i++) {
-		if(b_offset >= len) b_offset = 0;
-		result += multiply(a[len-1-i], b[b_offset]);
-		b_offset++;
+	// compiler directive, indicates the minimum loop iteration count
+ 	#pragma MUST_ITERATE(51)
+	for(i = 0;i < w_length;i++) {
+		//circular input buffer, so wrap arround after the 0th index
+		if(x_idx < 0) x_idx = BUFFER_LEN - 1;
+		result += multiply(w[i], x[x_idx]);
+		x_idx --;
 	}
 
 	return result;
 }
+
