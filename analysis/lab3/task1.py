@@ -281,23 +281,24 @@ def test_L(mu, L, h, numsamples = 20, numavg = 1, dyn = False):
 	plot(Ls, r)
 	show()
 
-def plot_audio:
+def plot_audio():
 	dynaudio = wave.read("dynfp.wav")
 	fixedaudio = wave.read("fixedfp.wav")
 
 	subplot(2, 1, 1)
-	title("Output Error Signal \n Floating Point, Dynamic mu Implementation", size=20)
+	title("Output Error Signal \n Fixed Point, Dynamic mu Implementation", size=20)
 	xlabel("Magntidue, Normalized", size=15)
 	ylabel("Sample Index", size=15)
 	plot(dynaudio[1]/32768.0)
 	subplot(2, 1, 2)
-	title("Output Error Signal \n Floating Point, Fixed mu Implementation", size=20)
+	title("Output Error Signal \n Fixed Point, Fixed mu Implementation", size=20)
 	xlabel("Magntidue, Normalized", size=15)
 	ylabel("Sample Index", size=15)
 	plot(fixedaudio[1]/32768.0)
 	show()
 
 
+plot_audio()
 # audio_adaptive(1)
 
 # filt_num = 1
