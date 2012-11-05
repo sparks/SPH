@@ -92,7 +92,8 @@ class AdaptiveFilter:
 		self.e = y-self.yw
 
 	def grad_desc(self):
-		var = variance(self.buff)
+		if self.useDynVar:
+			var = variance(self.buff)
 
 		# self.tot += self.mu/var/self.L
 		# self.count += 1
@@ -227,7 +228,7 @@ def test_adaptive_filter(mu, L, h, dyn = False, amp = 1.0, plot = False):
 		e.append(f.error())
 		f.grad_desc()
 
-		if(f.error() < 1e-1):
+		if(f.error() < 1e-3):
 			stable_count += 1
 			if(stable_count > 50):
 				max_iter = i-50
