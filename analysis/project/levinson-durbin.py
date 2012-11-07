@@ -60,13 +60,13 @@ def levinson(x, p):
 	for i in range(1, p+1):
 		k = r[i]
 		for j in range(1, i):
-			k += a[0, j]*r[i-j]
+			k -= a[0, j]*r[i-j]
 
-		k = -k/e
+		k = k/e
 		a[1, i] = k
 
 		for j in range(1, i):
-			a[1, j] = a[0, j] + k*a[0][i-j]
+			a[1, j] = a[0, j] - k*a[0][i-j]
 
 		e = (1 - k*k)*e
 
@@ -76,8 +76,31 @@ def levinson(x, p):
 	a[0][0] = 1
 	return a[0]
 
+def error(x, a):
+	pbuf = zeros(len(a))
+	error = zeros(len(x))
+	for i in range(len(x)):
+		pbuf[:-1] = pbuf[1:]
+		pbuf[-1] = x[i]
+		approx = 0
+		for j in range(1, len(a)):
+			approx += a[j]*pbuf[-1-j]
+		error[i] = x[i]-approx
+
+	return error
+
+
 t = array([i for i in range(100)])
 signal = sin(2*pi/20*t)
+# signal = randn(100)
+# signal = array([1.0,2.0,3.0,4.0,5.0,6.0])
+aref = lpc_ref(signal, 8)
+a = levinson(signal, 8)
+print a
+print aref
+e = error(signal, a)
 
-print levinson(signal, 20)
-print lpc_ref(signal, 20)
+plot(signal, label="original")
+plot(e, label="error")
+legend()
+show()
