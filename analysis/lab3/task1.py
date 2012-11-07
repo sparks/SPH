@@ -37,7 +37,9 @@ def variance(signal):
 	return var
 
 class AdaptiveFilter:
-	def __init__(self, mu, L, h):
+	def __init__(self, mu, L, h, useDynVar = False):
+		self.useDynVar = useDynVar
+
 		self.mu = float(mu)
 		self.L = L
 
@@ -90,18 +92,17 @@ class AdaptiveFilter:
 		self.e = y-self.yw
 
 	def grad_desc(self):
-		var = variance(self.buff)
+		if self.useDynVar:
+			var = variance(self.buff)
 
 		# self.tot += self.mu/var/self.L
 		# self.count += 1
 
 		for l in range(len(self.w)):
-			# if l == 0:
-				# print self.w[l], self.e, self.buff[len(self.buff)-1-l]
-			# self.w[l] += self.mu*self.e*self.buff[len(self.buff)-l-1] #lastvalue is n
-			self.w[l] += (self.mu/(self.L*var))*self.e*self.buff[len(self.buff)-l-1] #last value is n
-			# if l == 0:
-				# print self.w[l]
+			if self.useDynVar:
+				self.w[l] += (self.mu/(self.L*var))*self.e*self.buff[len(self.buff)-l-1] #last value is n
+			else:
+				self.w[l] += self.mu*self.e*self.buff[len(self.buff)-l-1] #lastvalue is n				
 
 	def error(self):
 		return self.e
@@ -118,7 +119,7 @@ def audio_adaptive(n):
 	start_t = time.clock()
 	e = []
 
-	f = AdaptiveFilter(0.1, int(len(filters[n])*2), filters[n])
+	f = AdaptiveFilter(0.1, int(len(filters[n])*2), filters[n], False)
 	print int(len(filters[n])*1.5)
 
 	for i, v in enumerate(cleansignal):
@@ -146,8 +147,6 @@ def audio_adaptive(n):
 	print "---"
 	print stop_t-start_t
 
-audio_adaptive(1)
-
 def audio_adaptive_given(n):
 	audio = wave.read("signal-echo.wav")
 
@@ -160,7 +159,7 @@ def audio_adaptive_given(n):
 	start_t = time.clock()
 	e = []
 
-	f = AdaptiveFilter(0.08, int(len(filters[n])*1.5), filters[n])
+	f = AdaptiveFilter(0.08, int(len(filters[n])*1.5), filters[n], False)
 
 	for i, v in enumerate(cleansignal):
 		f.inputgiven(v, echosignal[i])
@@ -186,12 +185,42 @@ def audio_adaptive_given(n):
 	print "---"
 	print stop_t-start_t
 
+def pwrlevel():
+	audio = wave.read("signal-echo.wav")
 
-def test_adaptive_filter(mu, L, h):
-	f = AdaptiveFilter(mu, L, h)
+	cleansignal = audio[1][2*8000:,0]
+	echosignal = audio[1][:,1]
+
+	varavg = 0
+	varmax = 0
+	chunk = 64
+
+	for i in range(len(cleansignal)/(chunk)):
+		subsig = cleansignal[i*chunk:(i+1)*chunk]
+		var = 0
+
+		for s in subsig:
+			var += pow((s/62767.0), 2)
+
+		var = var/chunk
+		# print var
+
+		varavg += var
+		if var > varmax:
+			varmax = var
+
+
+
+	varavg = varavg/(len(cleansignal)/chunk)
+	print "---"
+	print "Avg",varavg
+	print "Max:",varmax
+
+def test_adaptive_filter(mu, L, h, dyn = False, amp = 1.0, plot = False):
+	f = AdaptiveFilter(mu, L, h, dyn)
 	max_iter = 2000
 	# gauss_noise = [1 for i in range(max_iter)]
-	gauss_noise = randn(max_iter)
+	gauss_noise = randn(max_iter)*amp
 	stable_count = 0
 	e = []
 	for i, g in enumerate(gauss_noise):
@@ -199,35 +228,42 @@ def test_adaptive_filter(mu, L, h):
 		e.append(f.error())
 		f.grad_desc()
 
-		if(f.error() < 0.001):
+		if(f.error() < 1e-3):
 			stable_count += 1
-			if(stable_count > 20):
-				max_iter = i-20
+			if(stable_count > 50):
+				max_iter = i-50
 				break
 
 		else:
 			stable_count = 0
+
+	if plot:
+		plot(abs(array(e)))
+		show()
+
 	return (max_iter, f.w, e)
 
-def test_mu(mu, L, h, numsamples = 20, numavg = 10):
+def test_mu(mu, L, h, numsamples = 20, numavg = 5, dyn = False, amp = 1.0):
 	r = []	
 	mus = [mu[0]+(mu[1]-mu[0])*i/numsamples for i in range(numsamples)]
-
 	for i in range(numsamples):
 		res = 0
 		print "Computing mu=%s %s of %s" % (mus[i], i, numsamples)
 		for j in range(numavg):
-			res += test_adaptive_filter(mus[i], L, h)[0]
+			res += test_adaptive_filter(mus[i], L, h, dyn, amp)[0]
 
 		r = append(r, res/numavg)
 
-	title("Test mu from %s to %s L=%s" % (mu[0], mu[1], L))
-	xlabel("mu value")
-	ylabel("iterations till convergence")
-	plot(mus, r)
+	title("Convergence underestime L \n mu [%s, %s] L=%s (filter L=51)" % (mu[0], mu[1], L), size=20)
+	xlabel("mu", size=20)
+	ylabel("Steps until |e[n]| < 0.001", size=20)
+	grid()
+	plot(mus, r, linewidth=2, label="Simulated Convergence")
+	vlines(2.0/(L*amp*amp), 0, 2000, color='r', linewidth=2, label="Theoretical Limit")
+	legend(loc=2)
 	show()
 
-def test_L(mu, L, h, numsamples = 20, numavg = 10):
+def test_L(mu, L, h, numsamples = 20, numavg = 1, dyn = False):
 	r = []
 	Ls = [int(L[0]+(L[1]-L[0])*i/numsamples) for i in range(numsamples)]
 
@@ -235,7 +271,7 @@ def test_L(mu, L, h, numsamples = 20, numavg = 10):
 		res = 0
 		print "Computing L=%s %s of %s" % (Ls[i], i, numsamples)
 		for j in range(numavg):
-			res += test_adaptive_filter(mu, Ls[i], h)[0]
+			res += test_adaptive_filter(mu, Ls[i], h, dyn)[0]
 
 		r = append(r, res/numavg)
 
@@ -245,18 +281,53 @@ def test_L(mu, L, h, numsamples = 20, numavg = 10):
 	plot(Ls, r)
 	show()
 
-# filt_num = 0
-# res = test_adaptive_filter(0.1, 50, filters[filt_num])
+def plot_audio():
+	dynaudio = wave.read("dynfp.wav")
+	fixedaudio = wave.read("fixedfp.wav")
+
+	subplot(2, 1, 1)
+	title("Output Error Signal \n Fixed Point, Dynamic mu Implementation", size=20)
+	xlabel("Magntidue, Normalized", size=15)
+	ylabel("Sample Index", size=15)
+	plot(dynaudio[1]/32768.0)
+	subplot(2, 1, 2)
+	title("Output Error Signal \n Fixed Point, Fixed mu Implementation", size=20)
+	xlabel("Magntidue, Normalized", size=15)
+	ylabel("Sample Index", size=15)
+	plot(fixedaudio[1]/32768.0)
+	show()
+
+
+plot_audio()
+# audio_adaptive(1)
+
+# filt_num = 1
+# res = test_adaptive_filter(0.0001, len(filters[filt_num])/2, filters[filt_num])
 # print res[0]
 
+# pwrlevel()
+# for f in filters:
+	# print len(f)
+
+
 # filt_num = 0
-# test_mu([0.01, 0.14],len(filters[filt_num]), filters[filt_num])
+# test_mu([0.005, 0.2], len(filters[filt_num]), filters[filt_num])
+
+# filt_num = 1
+# test_mu([0.003, 0.05], len(filters[filt_num]), filters[filt_num])
+
+# filt_num = 0
+# test_mu([0.001, 0.05], len(filters[filt_num]), filters[filt_num], amp=2.0)
+
+# filt_num = 1
+# test_mu([0.003*2, 0.05*2], len(filters[filt_num])/2, filters[filt_num])
+
 # test_L(0.07, [5, 50], filters[filt_num])
 # mu range [0.03, 0.14]
 # L range [11, 29]
 
 # filt_num = 1
-# test_mu([0.01, 0.03],len(filters[filt_num]), filters[filt_num], 10, 4)
+# test_mu([0.01, 0.03],len(filters[filt_num]), filters[filt_num])
 # test_L(0.07, [5, 50], filters[filt_num])
 # mu range [0.01, 0.03]
 
@@ -272,3 +343,6 @@ def test_L(mu, L, h, numsamples = 20, numavg = 10):
 # mu range [0.03, 0.14]
 # L range [11, 29]
 
+
+# audio[1][:,0]) = audio[1][:,0]
+# audio[1][:,1] = audio[1][:,0]

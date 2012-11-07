@@ -1,6 +1,6 @@
 ;******************************************************************************
 ;* TMS320C6x C/C++ Codegen                                          PC v5.1.0 *
-;* Date/Time created: Mon Oct 29 05:47:38 2012                                *
+;* Date/Time created: Mon Nov 05 00:29:51 2012                                *
 ;******************************************************************************
 
 ;******************************************************************************
@@ -84,13 +84,13 @@ _convolve_as_func:
 ; 					.reg	a, b, prod_h, prod_l, sum, saved_amr, temp_amr	;registers to use
 ; loop:				.trip 10, 51											;between 10 and 51 itterations
 
-           MVC     .S2     AMR,saved_amr     ; |16| save AMR to restore later
+           MVC     .S2     AMR,saved_amr     ; |14| save AMR to restore later
 ||         ZERO    .L1     sum               ; |12| init sum to zero
-||         ADDAW   .D1     x',x_idx,x        ; |14| shift x_idx by 2 before adding
+||         ADDAW   .D1     x',x_idx,x        ; |13| shift x_idx by 2 and then add to x to get the pointer to the first value
 
-           MVK     .S1     0x1,temp_amr      ; |17| A5 points to the buffer -> ...0100
-           MVKLH   .S1     0x7,temp_amr      ; |18| N=00101 because block size is 256 (64  ints) -> 2^(n + 1) = 2^(7 + 1)
-           MVC     .S2X    temp_amr,AMR      ; |19| so AMR=0x00050004
+           MVK     .S1     0x1,temp_amr      ; |15| A5 points to the buffer -> ...0100
+           MVKLH   .S1     0x7,temp_amr      ; |16| N=00101 because block size is 256 (64  ints) -> 2^(n + 1) = 2^(7 + 1)
+           MVC     .S2X    temp_amr,AMR      ; |17| so AMR=0x00050004
 
            MVC     .S2     CSR,B6
 ||         ADD     .L1X    1,w_length,A6
@@ -107,8 +107,8 @@ _convolve_as_func:
 ;*----------------------------------------------------------------------------*
 ;*   SOFTWARE PIPELINE INFORMATION
 ;*
-;*      Loop source line                 : 21
-;*      Loop closing brace source line   : 30
+;*      Loop source line                 : 19
+;*      Loop closing brace source line   : 28
 ;*      Known Minimum Trip Count         : 10                    
 ;*      Known Maximum Trip Count         : 51                    
 ;*      Known Max Trip Count Factor      : 1
@@ -162,70 +162,70 @@ _convolve_as_func:
 ;*        SINGLE SCHEDULED ITERATION
 ;*
 ;*        C29:
-;*   0              LDW     .D2T2   *B4++,B5          ; |21| load and post increment w
-;*     ||           LDW     .D1T1   *A4--,A3          ; |22| load and post decrement x
+;*   0              LDW     .D2T2   *B4++,B5          ; |19| load and post increment w
+;*     ||           LDW     .D1T1   *A4--,A3          ; |20| load and post decrement x
 ;*   1              NOP             4
-;*   5              MPYID   .M1X    B5,A3,A7:A6       ; |23| mult 32bit x 32bit for 64bit result
+;*   5              MPYID   .M1X    B5,A3,A7:A6       ; |21| mult 32bit x 32bit for 64bit result
 ;*   6              NOP             6
-;*  12      [ B0]   ADD     .L2     0xffffffff,B0,B0  ; |29| decrement filter length
-;*  13      [ B0]   B       .S2     C29               ; |30| branch until itterated filter length times
+;*  12      [ B0]   ADD     .L2     0xffffffff,B0,B0  ; |27| decrement filter length
+;*  13      [ B0]   B       .S2     C29               ; |28| branch until itterated filter length times
 ;*  14              NOP             1
-;*  15              SHL     .S1     A7,0x1,A3         ; |25| shift upper result register left by 1
-;*  16              EXTU    .S1     A6,0x1e,0x1f,A6   ; |26| extract 31st bit and 0 extend
-;*  17              OR      .L1     A6,A3,A3          ; |27| bitwise OR lower and upper product
-;*  18              ADD     .D1     A3,A5,A5          ; |28| sum
-;*  19              ; BRANCHCC OCCURS {C29}           ; |30| 
+;*  15              SHL     .S1     A7,0x1,A3         ; |23| shift upper result register left by 1
+;*  16              EXTU    .S1     A6,0x1e,0x1f,A6   ; |24| extract 31st bit and 0 extend
+;*  17              OR      .L1     A6,A3,A3          ; |25| bitwise OR lower and upper product
+;*  18              ADD     .D1     A3,A5,A5          ; |26| sum
+;*  19              ; BRANCHCC OCCURS {C29}           ; |28| 
 ;*----------------------------------------------------------------------------*
 L1:    ; PIPED LOOP PROLOG
 ;** --------------------------------------------------------------------------*
 L2:    ; PIPED LOOP KERNEL
 DW$L$_convolve_as_func$3$B:
 
-   [ w_length'] ADD .L2    0xffffffff,w_length',w_length' ; |29| <0,12> decrement filter length
-||         MPYID   .M1X    a,b,prod_h:prod_l ; |23| <1,5> mult 32bit x 32bit for 64bit result
+   [ w_length'] ADD .L2    0xffffffff,w_length',w_length' ; |27| <0,12> decrement filter length
+||         MPYID   .M1X    a,b,prod_h:prod_l ; |21| <1,5> mult 32bit x 32bit for 64bit result
 
-   [ w_length'] B  .S2     L2                ; |30| <0,13> branch until itterated filter length times
+   [ w_length'] B  .S2     L2                ; |28| <0,13> branch until itterated filter length times
 
-   [ A1]   LDW     .D2T2   *w++,a            ; |21| <2,0> load and post increment w
-|| [ A1]   LDW     .D1T1   *x'--,b           ; |22| <2,0> load and post decrement x
+   [ A1]   LDW     .D2T2   *w++,a            ; |19| <2,0> load and post increment w
+|| [ A1]   LDW     .D1T1   *x'--,b           ; |20| <2,0> load and post decrement x
 
-           SHL     .S1     prod_h,0x1,prod_h' ; |25| <0,15> shift upper result register left by 1
-           EXTU    .S1     prod_l,0x1e,0x1f,prod_l ; |26| <0,16> extract 31st bit and 0 extend
-           OR      .L1     prod_l,prod_h',prod_h' ; |27| <0,17> bitwise OR lower and upper product
+           SHL     .S1     prod_h,0x1,prod_h' ; |23| <0,15> shift upper result register left by 1
+           EXTU    .S1     prod_l,0x1e,0x1f,prod_l ; |24| <0,16> extract 31st bit and 0 extend
+           OR      .L1     prod_l,prod_h',prod_h' ; |25| <0,17> bitwise OR lower and upper product
 
    [ A2]   SUB     .L1     A2,1,A2           ; <0,18> 
 || [ A1]   SUB     .S1     A1,1,A1           ; <0,18> 
-|| [!A2]   ADD     .D1     prod_h',sum',sum' ; |28| <0,18> sum
+|| [!A2]   ADD     .D1     prod_h',sum',sum' ; |26| <0,18> sum
 
 DW$L$_convolve_as_func$3$E:
 ;** --------------------------------------------------------------------------*
 L3:    ; PIPED LOOP EPILOG
            NOP             2
            MVC     .S2     B6,CSR            ; interrupts on
-           SHL     .S1     prod_h,0x1,prod_h'' ; |25| (E) <2,15> shift upper result register left by 1
-           EXTU    .S1     prod_l,0x1e,0x1f,prod_l' ; |26| (E) <2,16> extract 31st bit and 0 extend
-           OR      .L1     prod_l',prod_h'',prod_h' ; |27| (E) <2,17> bitwise OR lower and upper product
+           SHL     .S1     prod_h,0x1,prod_h'' ; |23| (E) <2,15> shift upper result register left by 1
+           EXTU    .S1     prod_l,0x1e,0x1f,prod_l' ; |24| (E) <2,16> extract 31st bit and 0 extend
+           OR      .L1     prod_l',prod_h'',prod_h' ; |25| (E) <2,17> bitwise OR lower and upper product
 
-           MVC     .S2     saved_amr,AMR     ; |31| restore AMR
-||         ADD     .L1     prod_h',sum',sum  ; |28| 
+           MVC     .S2     saved_amr,AMR     ; |29| restore AMR
+||         ADD     .L1     prod_h',sum',sum  ; |26| 
 
-           RET     .S2     B3                ; |33| 
-	.dwpsn	"H:\SPH\firmware\lab3\convolve_as_func.sa",33,1
+           RET     .S2     B3                ; |31| 
+	.dwpsn	"H:\SPH\firmware\lab3\convolve_as_func.sa",31,1
            NOP             5
-           ; BRANCH OCCURS {B3}              ; |33| 
+           ; BRANCH OCCURS {B3}              ; |31| 
 
 DW$2	.dwtag  DW_TAG_loop
-	.dwattr DW$2, DW_AT_name("H:\SPH\firmware\lab3\convolve_as_func.asm:L2:1:1351504058")
+	.dwattr DW$2, DW_AT_name("H:\SPH\firmware\lab3\convolve_as_func.asm:L2:1:1352093391")
 	.dwattr DW$2, DW_AT_begin_file("H:\SPH\firmware\lab3\convolve_as_func.sa")
-	.dwattr DW$2, DW_AT_begin_line(0x14)
-	.dwattr DW$2, DW_AT_end_line(0x1e)
+	.dwattr DW$2, DW_AT_begin_line(0x12)
+	.dwattr DW$2, DW_AT_end_line(0x1c)
 DW$3	.dwtag  DW_TAG_loop_range
 	.dwattr DW$3, DW_AT_low_pc(DW$L$_convolve_as_func$3$B)
 	.dwattr DW$3, DW_AT_high_pc(DW$L$_convolve_as_func$3$E)
 	.dwendtag DW$2
 
 	.dwattr DW$1, DW_AT_end_file("H:\SPH\firmware\lab3\convolve_as_func.sa")
-	.dwattr DW$1, DW_AT_end_line(0x21)
+	.dwattr DW$1, DW_AT_end_line(0x1f)
 	.dwattr DW$1, DW_AT_end_column(0x01)
 	.dwendtag DW$1
 
