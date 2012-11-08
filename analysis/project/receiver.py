@@ -78,7 +78,11 @@ class Receiver():
 		if not self.receiverThread.isAlive():
 			print "picking up"
 			self.receiverOn = True
-			self.receiverThread.start()
+			try:
+				self.receiverThread.start()
+			except RuntimeError:
+				# thread was already run, make new one
+				self.receiverThread = Thread(target=self.receiverThread, args=())
 
 	def hangUp(self):
 		print "hanging up"
