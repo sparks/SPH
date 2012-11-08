@@ -4,13 +4,10 @@ from collections import deque
 import copy
 
 class Receiver():
-	def __init__(self, n=100, p=50, makethread=True):
-		self.numN = n
-		self.numP = p
+	def __init__(self, makethread=True):
 		self.threaded = makethread
 
-		self.n = []
-		self.p = []
+		self.output = []
 
 		self.newError = deque()
 		self.newA = deque()
@@ -35,14 +32,29 @@ class Receiver():
 			if self.newError and self.newA:
 				#get the new input
 				self.error = self.newError.popleft()
-				self.A = self.newA.popleft()
+				self.a = self.newA.popleft()
 				self.dataReady.release()
 			
-				#calculate the new output
 				print "receiving %r" % i
 				i = i + 1
 
-				#write out the new output
+				print "length error %r" % len(self.error)
+				print "length a %r" % len(self.a)
+
+				#check that output has enough past data, ie: at least len(A)
+				self.padding = 0
+				while len(self.a) - 1 > len(self.output):
+					#zero extend
+					self.output.insert(0,0)
+					self.padding += 1
+
+				# synthesize new output
+				self.synthesize()
+
+				# pop any padded on zeros
+				for j in range(self.padding):
+					self.output.pop(0)
+
 
 			elif not self.receiverOn:
 				running = False
@@ -55,6 +67,7 @@ class Receiver():
 
 
 	def receiveIdeal(self, error, A):
+
 		self.dataReady.acquire()
 		self.newError.append(copy.copy(error))
 		self.newA.append(copy.copy(A))
@@ -77,6 +90,13 @@ class Receiver():
 		self.receiverThread.join()
 		print "confirmed receiver hung up"
 
-
-
+	def synthesize(self):
+		for i in range(len(self.error)):
+			approx = 0
+			for j in range(1,len(self.a)):
+				approx += self.a[j]*self.output[-j]
+			#error[i] = x[i]-approx
+			approx += self.error[i]
+			self.output.append(approx)
+	
 

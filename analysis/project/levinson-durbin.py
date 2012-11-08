@@ -5,6 +5,7 @@ import numpy as np
 import scipy as sp
 import scipy.signal as sig
 
+from receiver import Receiver
 
 def lpc_ref(signal, order):
 	"""Compute the Linear Prediction Coefficients.
@@ -100,7 +101,13 @@ print a
 print aref
 e = error(signal, a)
 
-plot(signal, label="original")
+#test
+recv = Receiver()
+recv.receiveIdeal(e, a)
+recv.hangUp()
+
+#plot(signal, label="original")
 plot(e, label="error")
+plot(recv.output, label="output")
 legend()
 show()
