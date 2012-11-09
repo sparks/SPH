@@ -48,13 +48,18 @@ def autocorrelate(x, k):
 	else:
 		return correlate(x[:-k], x[k:], 'valid')[0]
 
-def levinson(x, p):
+def levinson(x, p, normalize=False):
 	k = 0
 	a = zeros([2, p+1])
 	r = zeros(p+1)
 
 	for i in range(p+1):
 		r[i] = autocorrelate(x, i)
+
+	if normalize:
+		factor = r[0]
+		for i in range(p+1):
+			r[i] = r[i]/factor
 
 	e = r[0]
 
@@ -91,23 +96,37 @@ def error(x, a):
 	return error
 
 
-t = array([i for i in range(100)])
-signal = sin(2*pi/20*t)
-# signal = randn(100)
-# signal = array([1.0,2.0,3.0,4.0,5.0,6.0])
-aref = lpc_ref(signal, 8)
-a = levinson(signal, 8)
-print a
-print aref
-e = error(signal, a)
+#build signal
+t = array([i for i in range(300)])
+signal = sin(2*pi/20*t)+0.1*randn(len(t))
 
-#test
+#find LPC coefficients
+aref = lpc_ref(signal, 5)
+a = levinson(signal, 5, False)
+
+# print a
+# print aref
+
+#build error
+e_ideal = error(signal, a)
+e_white = randn(len(e_ideal))
+e_imp = zeros(len(e_ideal))
+
+for i in range(len(e_imp)):
+	if i%20 == 0:
+		e_imp[i] = 1
+
+e = e_imp
+
+#Xmit and rebuild
 recv = Receiver()
 recv.receiveIdeal(e, a)
 recv.hangUp()
 
-#plot(signal, label="original")
+#Plot results
+plot(signal, label="original")
 plot(e, label="error")
 plot(recv.output, label="output")
+# ylim([-5, 5])
 legend()
 show()
