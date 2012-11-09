@@ -55,6 +55,7 @@ def levinson(x, p, normalize=False):
 
 	for i in range(p+1):
 		r[i] = autocorrelate(x, i)
+		# r[i] = autocorrelate(x[:len(x)-(p+1)+i], i)
 
 	if normalize:
 		factor = r[0]
@@ -98,14 +99,24 @@ def error(x, a):
 
 #build signal
 t = array([i for i in range(300)])
-signal = sin(2*pi/20*t)+0.1*randn(len(t))
+signal = sin(2*pi/20*t)
+
+# r = zeros(len(signal)/2)
+
+# for i in range(len(signal)/2):
+# 	r[i] = autocorrelate(signal[:len(signal)/2+i], i)
+
+# factor = r[0]
+# for i in range(len(signal)/2):
+# 	r[i] = r[i]/factor
+
+# plot(r)
+# plot(signal[:len(signal)/2])
+# show()
 
 #find LPC coefficients
 aref = lpc_ref(signal, 5)
 a = levinson(signal, 5, False)
-
-# print a
-# print aref
 
 #build error
 e_ideal = error(signal, a)
@@ -130,3 +141,14 @@ plot(recv.output, label="output")
 # ylim([-5, 5])
 legend()
 show()
+
+# Questions
+# Autocorrelation of standard length
+# Boundary concerns for discontinuties
+# Boundary concern for reconstruction via a via stepan's implementations
+# Questions about L-D recursion equations and sign of output
+# Gain computation
+# Voiced/Unvoiced detection
+# Transition voiced/Unvoiced
+# Gain estimation
+# Fundamental frequency detection and reproduction
