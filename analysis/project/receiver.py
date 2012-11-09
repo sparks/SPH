@@ -4,8 +4,9 @@ from collections import deque
 import copy
 
 class Receiver():
-	def __init__(self, makethread=True):
+	def __init__(self, makethread=True, lookback=False):
 		self.threaded = makethread
+		self.lookback = lookback
 
 		self.output = []
 
@@ -67,7 +68,6 @@ class Receiver():
 
 
 	def receiveIdeal(self, error, A):
-
 		self.dataReady.acquire()
 		self.newError.append(copy.copy(error))
 		self.newA.append(copy.copy(A))
@@ -98,7 +98,8 @@ class Receiver():
 		for i in range(len(self.error)):
 			approx = 0
 			for j in range(1,len(self.a)):
-				approx += self.a[j]*self.output[-j]
+				if (i-j) >= 0 or self.lookback:
+					approx += self.a[j]*self.output[-j]
 			#error[i] = x[i]-approx
 			approx += self.error[i]
 			self.output.append(approx)

@@ -96,11 +96,42 @@ def error(x, a):
 
 	return error
 
-
 #build signal
-t = array([i for i in range(300)])
+t = array([i for i in range(1800)])
 signal = sin(2*pi/20*t)
 
+#find LPC coefficients
+# aref = lpc_ref(signal, 5)
+recv = Receiver()
+
+for i in range(10):
+	a = levinson(signal[i*180:(i+1)*180], 10, False)
+
+	#build error
+	e_ideal = error(signal[i*180:(i+1)*180], a)
+	e_white = randn(len(e_ideal))
+	e_imp = zeros(len(e_ideal))
+
+	for i in range(len(e_imp)):
+		if i%20 == 0:
+			e_imp[i] = 1
+
+	e = e_ideal
+
+	#Xmit and rebuild
+	recv.receiveIdeal(e, a)
+
+recv.hangUp()
+
+#Plot results
+plot(signal, label="original")
+plot(e, label="error")
+plot(recv.output, label="output")
+# ylim([-5, 5])
+legend()
+show()
+
+#Autocorre Test
 # r = zeros(len(signal)/2)
 
 # for i in range(len(signal)/2):
@@ -113,34 +144,6 @@ signal = sin(2*pi/20*t)
 # plot(r)
 # plot(signal[:len(signal)/2])
 # show()
-
-#find LPC coefficients
-aref = lpc_ref(signal, 5)
-a = levinson(signal, 5, False)
-
-#build error
-e_ideal = error(signal, a)
-e_white = randn(len(e_ideal))
-e_imp = zeros(len(e_ideal))
-
-for i in range(len(e_imp)):
-	if i%20 == 0:
-		e_imp[i] = 1
-
-e = e_imp
-
-#Xmit and rebuild
-recv = Receiver()
-recv.receiveIdeal(e, a)
-recv.hangUp()
-
-#Plot results
-plot(signal, label="original")
-plot(e, label="error")
-plot(recv.output, label="output")
-# ylim([-5, 5])
-legend()
-show()
 
 # Questions
 # Autocorrelation of standard length
