@@ -83,8 +83,8 @@ def levinson(x, p, normalize=False):
 	a[0][0] = 1
 	return a[0]
 
-def error(x, a):
-	pbuf = zeros(len(a))
+def error(x, a, pbuf):
+	pbuf = pbuf.copy()
 	error = zeros(len(x))
 	for i in range(len(x)):
 		pbuf[:-1] = pbuf[1:]
@@ -98,26 +98,34 @@ def error(x, a):
 
 #build signal
 t = array([i for i in range(1800)])
-signal = sin(2*pi/20*t)
+signal = sin(2*pi/20*t)+0.1*randn(len(t))
+# t = array([i for i in range(1800)])
+# signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
 
 #find LPC coefficients
 # aref = lpc_ref(signal, 5)
-recv = Receiver()
+recv = Receiver(lookback = True)
+
+e_complete = zeros(0)
 
 for i in range(10):
+
 	a = levinson(signal[i*180:(i+1)*180], 10, False)
 
 	#build error
-	e_ideal = error(signal[i*180:(i+1)*180], a)
+	if i != 0:
+		e_ideal = error(signal[i*180:(i+1)*180], a, signal[i*180-len(a):i*180])
+	else:
+		e_ideal = error(signal[i*180:(i+1)*180], a, zeros(len(a)))		
 	e_white = randn(len(e_ideal))
 	e_imp = zeros(len(e_ideal))
 
 	for i in range(len(e_imp)):
-		if i%20 == 0:
+		if i%2 == 0:
 			e_imp[i] = 1
 
 	e = e_ideal
-
+	e_complete = append(e_complete, e)
 	#Xmit and rebuild
 	recv.receiveIdeal(e, a)
 
@@ -125,8 +133,8 @@ recv.hangUp()
 
 #Plot results
 plot(signal, label="original")
-plot(e, label="error")
-plot(recv.output, label="output")
+plot(e_complete, label="error")
+plot(recv.output/max(abs(array(recv.output)))*max(abs(array(signal))), label="output")
 # ylim([-5, 5])
 legend()
 show()
