@@ -96,63 +96,69 @@ def error(x, a, pbuf):
 
 	return error
 
-#build signal
-t = array([i for i in range(1800)])
-signal = sin(2*pi/20*t)+0.1*randn(len(t))
-# t = array([i for i in range(1800)])
-# signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
+def testblockLPC():
+	#build signal
+	blocksize = 180
+	numcoef = 4
+	t = array([i for i in range(blocksize*3)])
+	signal = sin(2*pi/20*t)+0.1*randn(len(t))
 
-#find LPC coefficients
-# aref = lpc_ref(signal, 5)
-recv = Receiver(lookback = False)
+	# t = array([i for i in range(1800)])
+	# signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
 
-e_complete = zeros(0)
+	#Set up receiver
+	recv = Receiver(lookback = True)
+	e_complete = zeros(0)
 
-for i in range(10):
+	#Process blocks
+	for i in range(len(t)/blocksize):
+		#find LPC coefficients
+		a = levinson(signal[i*blocksize:(i+1)*blocksize], numcoef, False)
 
-	a = levinson(signal[i*180:(i+1)*180], 10, False)
+		#build error
+		if i == 0 or recv.lookback == False:
+			e_ideal = error(signal[i*blocksize:(i+1)*blocksize], a, zeros(len(a)))		
+		else:
+			e_ideal = error(signal[i*blocksize:(i+1)*blocksize], a, signal[i*blocksize-len(a):i*blocksize])
+		e_white = randn(len(e_ideal))
+		e_imp = zeros(len(e_ideal))
 
-	#build error
-	if i == 0 or recv.lookback == False:
-		e_ideal = error(signal[i*180:(i+1)*180], a, zeros(len(a)))		
-	else:
-		e_ideal = error(signal[i*180:(i+1)*180], a, signal[i*180-len(a):i*180])
-	e_white = randn(len(e_ideal))
-	e_imp = zeros(len(e_ideal))
+		for i in range(len(e_imp)):
+			if i%20 == 0:
+				e_imp[i] = 1
 
-	for i in range(len(e_imp)):
-		if i%2 == 0:
-			e_imp[i] = 1
+		e = e_ideal
+		e_complete = append(e_complete, e)
 
-	e = e_ideal
-	e_complete = append(e_complete, e)
-	#Xmit and rebuild
-	recv.receiveIdeal(e, a)
+		#Xmit and rebuild
+		recv.receiveIdeal(e, a)
 
-recv.hangUp()
+	#complete the transmission
+	recv.hangUp()
 
-#Plot results
-plot(signal, label="original")
-plot(e_complete, label="error")
-plot(recv.output/max(abs(array(recv.output)))*max(abs(array(signal))), label="output")
-# ylim([-5, 5])
-legend()
-show()
+	#Plot results
+	plot(signal, label="original")
+	# plot(e_complete, label="error")
+	plot(recv.output/max(abs(array(recv.output)))*max(abs(array(signal))), label="output") #Scale to the same range
+	# ylim([-5, 5])
+	legend()
+	show()
 
-#Autocorre Test
-# r = zeros(len(signal)/2)
+def testautocorr():
+	r = zeros(len(signal)/2)
 
-# for i in range(len(signal)/2):
-# 	r[i] = autocorrelate(signal[:len(signal)/2+i], i)
+	for i in range(len(signal)/2):
+		r[i] = autocorrelate(signal[:len(signal)/2+i], i) #Even lengths
 
-# factor = r[0]
-# for i in range(len(signal)/2):
-# 	r[i] = r[i]/factor
+	factor = r[0]
+	for i in range(len(signal)/2):
+		r[i] = r[i]/factor
 
-# plot(r)
-# plot(signal[:len(signal)/2])
-# show()
+	plot(r)
+	plot(signal[:len(signal)/2])
+	show()
 
+testblockLPC()
 # Questions
 # Autocorrelation of standard length
 # Boundary concerns for discontinuties
