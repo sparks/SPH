@@ -104,7 +104,7 @@ signal = sin(2*pi/20*t)+0.1*randn(len(t))
 
 #find LPC coefficients
 # aref = lpc_ref(signal, 5)
-recv = Receiver(lookback = True)
+recv = Receiver(lookback = False)
 
 e_complete = zeros(0)
 
@@ -113,10 +113,10 @@ for i in range(10):
 	a = levinson(signal[i*180:(i+1)*180], 10, False)
 
 	#build error
-	if i != 0:
-		e_ideal = error(signal[i*180:(i+1)*180], a, signal[i*180-len(a):i*180])
-	else:
+	if i == 0 or recv.lookback == False:
 		e_ideal = error(signal[i*180:(i+1)*180], a, zeros(len(a)))		
+	else:
+		e_ideal = error(signal[i*180:(i+1)*180], a, signal[i*180-len(a):i*180])
 	e_white = randn(len(e_ideal))
 	e_imp = zeros(len(e_ideal))
 
