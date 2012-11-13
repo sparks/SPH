@@ -42,24 +42,32 @@ def AMDF(x, p):
 def AMDFTest():
 	amdf = zeros(160-20)
 	t = array([i for i in range(800)])
-	signal = sin(2*pi/60*t)+randn(len(t))
+	signal = sin(2*pi/51*t)+randn(len(t))
 	for p in range(20, 160):
 		amdf[p-20] = AMDF(signal, p)
 
 	found = []
+	
 	lowest = min(amdf)
-	for i, v in enumerate(amdf):
-		if v < lowest+0.03:
-			found.append(i)
+	highest = max(amdf)
 
-	print found[0]+20
+	if highest-lowest > 0.5:
+		for i, v in enumerate(amdf):
+			if v < lowest+0.03:
+				found.append(i)
+
+		print "tonal with period:", found[0]+20
+	else:
+		print "white nosie"
 
 	subplot(3, 1, 1)
 	plot(abs(fft(signal)))
 	subplot(3, 1 ,2)
 	plot([i+20 for i in range(len(amdf))], amdf)
 	for f in found:
-		plot([f+20], [amdf[f]], 'ro')
+		plot([f+20], [amdf[f]], 'yo')
+	plot(amdf.tolist().index(highest)+20, highest, 'go')
+	plot(amdf.tolist().index(lowest)+20, lowest, 'ro')
 	subplot(3, 1, 3)
 	plot(signal)
 	show()
