@@ -27,25 +27,31 @@ def idealError(x, a, pbuf):
 	return error
 
 def AMDF(x, p):
-	print len(x)/p
-	if len(x)/p <= 1:
+	if p >= len(x):
 		print "invalid p value in AMDF"
 		return
 
 	amdf = 0.0
-	for i in range(1, len(x)/p):
-		amdf += abs(x[i*p]-x[(i-1)*p])
 
-	amdf = amdf/(len(x)/p-1)
+	for i in range(p, len(x)):
+		amdf += abs(x[i]-x[i-p])
+
+	amdf = amdf/(len(x)-p)
 	return amdf
 
 def AMDFTest():
-	amdf = zeros(60)
+	amdf = zeros(160-20)
 	t = array([i for i in range(800)])
-	signal = sin(2*pi/24.5*t)
-	for p in range(1, len(amdf)):
-		amdf[p] = AMDF(signal, p)
+	signal = sin(2*pi/100*t)+randn(len(t))
+	for p in range(20, 160):
+		amdf[p-20] = AMDF(signal, p)
+
+	subplot(3, 1, 1)
+	plot(abs(fft(signal)))
+	subplot(3, 1 ,2)
 	plot(amdf)
+	subplot(3, 1, 3)
+	plot(signal)
 	show()
 
 AMDFTest()
