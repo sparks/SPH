@@ -42,14 +42,24 @@ def AMDF(x, p):
 def AMDFTest():
 	amdf = zeros(160-20)
 	t = array([i for i in range(800)])
-	signal = sin(2*pi/100*t)+randn(len(t))
+	signal = sin(2*pi/60*t)+randn(len(t))
 	for p in range(20, 160):
 		amdf[p-20] = AMDF(signal, p)
+
+	found = []
+	lowest = min(amdf)
+	for i, v in enumerate(amdf):
+		if v < lowest+0.03:
+			found.append(i)
+
+	print found[0]+20
 
 	subplot(3, 1, 1)
 	plot(abs(fft(signal)))
 	subplot(3, 1 ,2)
-	plot(amdf)
+	plot([i+20 for i in range(len(amdf))], amdf)
+	for f in found:
+		plot([f+20], [amdf[f]], 'ro')
 	subplot(3, 1, 3)
 	plot(signal)
 	show()
