@@ -71,17 +71,16 @@ def AMDFTest():
 	else:
 		print "white nosie"
 
-	subplot(3, 1, 1)
+	subplot(2, 1, 1)
 	plot(abs(fft(signal)))
-	subplot(3, 1 ,2)
+	subplot(2, 1 ,2)
 	plot([i+20 for i in range(len(amdf))], amdf)
+	plot(tonalcenter, amdf[int(tonalcenter)-20], 'o', color="pink", markersize=20, label="Tonal Center")
 	for f in found:
 		plot([f+20], [amdf[f]], 'yo')
-	plot(amdf.tolist().index(highest)+20, highest, 'go')
-	plot(amdf.tolist().index(lowest)+20, lowest, 'ro')
-	plot(tonalcenter, amdf[int(tonalcenter)-20], 'o', color="black", markersize=10)
-	subplot(3, 1, 3)
-	plot(signal)
+	plot(amdf.tolist().index(highest)+20, highest, 'go', label="Max Val")
+	plot(amdf.tolist().index(lowest)+20, lowest, 'ro', label="Min Val")
+	legend(loc = 4)
 	show()
 
 AMDFTest()
