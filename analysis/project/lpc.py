@@ -26,26 +26,24 @@ def idealError(x, a, pbuf):
 
 	return error
 
-def AMDF(x, p):
-	if p >= len(x):
-		print "invalid p value in AMDF"
-		return
+def AMDF(x, min, max):
+	if min <= 0:
+		min = 1
+	if max > len(x):
+		max = len(x)
 
-	amdf = 0.0
+	amdf = zeros(max-min)
 
-	for i in range(p, len(x)):
-		amdf += abs(x[i]-x[i-p])
+	for p in range(min, max):
+		amdf[p-min] = 0.0
+		for i in range(p, len(x)):
+			amdf[p-min] += abs(x[i]-x[i-p])
+		amdf[p-min] = amdf[p-min]/(len(x)-p)
 
-	amdf = amdf/(len(x)-p)
 	return amdf
 
-def AMDFTest():
-	amdf = zeros(160-20)
-	t = array([i for i in range(800)])
-	signal = sin(2*pi/51*t)+sin(2*pi/54*t)+sin(2*pi/100*t)+sin(2*pi/25*t)+randn(len(t))
-	for p in range(20, 160):
-		amdf[p-20] = AMDF(signal, p)
-
+def classify(x):
+	amdf = AMDF(x, 20, 160)
 	found = []
 	
 	lowest = min(amdf)
@@ -67,15 +65,52 @@ def AMDFTest():
 
 		tonalcenter = tonalcenter/float(tonalcount)
 
-		print "tonal with period:", tonalcenter
+		return (True, tonalcenter)
 	else:
-		print "white nosie"
+		return (False, -1)
+
+def rmsgain(x):
+	gain = 0
+	for v in abs(x):
+		gain += v
+	gain = gain/len(x)
+	return gain
+
+def AMDFTest():
+	t = array([i for i in range(800)])
+	signal = sin(2*pi/51*t)+sin(2*pi/54*t)+sin(2*pi/100*t)+sin(2*pi/25*t)+randn(len(t))
+
+	classification = classify(signal)
+	print classification
+
+	amdf = AMDF(signal, 20, 160)
+	found = []
+	
+	lowest = min(amdf)
+	highest = max(amdf)
+
+	if highest-lowest > 0.3:
+		for i, v in enumerate(amdf):
+			if v < lowest+0.05:
+				found.append(i)
+
+		tonalcenter = 0
+		tonalcount = 0
+		for i, f in enumerate(found):
+			tonalcenter += f+20
+			tonalcount += 1
+			if i < len(found)-1:
+				if found[i+1]-found[i] > 2:
+					break
+
+		tonalcenter = tonalcenter/float(tonalcount)
 
 	subplot(2, 1, 1)
 	plot(abs(fft(signal)))
 	subplot(2, 1 ,2)
 	plot([i+20 for i in range(len(amdf))], amdf)
-	plot(tonalcenter, amdf[int(tonalcenter)-20], 'o', color="pink", markersize=20, label="Tonal Center")
+	if classification[0]:
+		plot(tonalcenter, amdf[int(tonalcenter)-20], 'o', color="pink", markersize=20, label="Tonal Center")
 	for f in found:
 		plot([f+20], [amdf[f]], 'yo')
 	plot(amdf.tolist().index(highest)+20, highest, 'go', label="Max Val")
@@ -83,14 +118,15 @@ def AMDFTest():
 	legend(loc = 4)
 	show()
 
-AMDFTest()
-
 def testblockLPC():
 	#build signal
 	blocksize = 180
-	numcoef = 4
+	numcoef = 10
 	t = array([i for i in range(blocksize*3)])
-	signal = sin(2*pi/20*t)+0.1*randn(len(t))
+	signal = sin(2*pi/35*t+20)+0.1*randn(len(t))
+	signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3+0.1*randn(len(t))
+	signal = append(signal, 0.1*randn(len(t)))
+	t = append(t, array([i for i in range(blocksize*3)]))
 
 	# t = array([i for i in range(1800)])
 	# signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
@@ -103,20 +139,34 @@ def testblockLPC():
 	for i in range(len(t)/blocksize):
 		#find LPC coefficients
 		a = levinson(signal[i*blocksize:(i+1)*blocksize], numcoef, False)
-
+		
 		#build error
 		if i == 0 or recv.lookback == False:
 			e_ideal = idealError(signal[i*blocksize:(i+1)*blocksize], a, zeros(len(a)))		
 		else:
 			e_ideal = idealError(signal[i*blocksize:(i+1)*blocksize], a, signal[i*blocksize-len(a):i*blocksize])
-		e_white = randn(len(e_ideal))
-		e_imp = zeros(len(e_ideal))
-
-		for i in range(len(e_imp)):
-			if i%20 == 0:
-				e_imp[i] = 1
-
 		e = e_ideal
+
+		classification = classify(signal[i*blocksize:(i+1)*blocksize])
+		gain = rmsgain(signal[i*blocksize:(i+1)*blocksize])
+		print classification
+		print gain
+
+		e_white = randn(len(e_ideal))
+		e_white = e_white*gain
+		
+		e_imp = zeros(len(e_ideal))
+		if classification[0]:
+			for i in range(len(e_imp)):
+				if i%classification[1] == 0:
+					e_imp[i] = 1
+		e_imp = e_imp*gain
+
+		if classification[0]:
+			e = e_imp
+		else:
+			e = e_white
+
 		e_complete = append(e_complete, e)
 
 		#Xmit and rebuild
@@ -126,9 +176,14 @@ def testblockLPC():
 	recv.hangUp()
 
 	#Plot results
+	subplot(2, 1, 1)
 	plot(signal, label="original")
+	legend()
 	# plot(e_complete, label="error")
+	subplot(2, 1, 2)
 	plot(recv.output/max(abs(array(recv.output)))*max(abs(array(signal))), label="output") #Scale to the same range
 	# ylim([-5, 5])
 	legend()
 	show()
+
+testblockLPC()

@@ -4,10 +4,10 @@ from collections import deque
 import copy
 
 class Receiver():
-	def __init__(self, makethread=True, lookback=False):
+	def __init__(self, makethread=True, lookback=False, debug=False):
 		self.threaded = makethread
 		self.lookback = lookback
-
+		self.debug = debug
 		self.output = []
 
 		self.newError = deque()
@@ -23,11 +23,13 @@ class Receiver():
 	def receiverThread(self):
 		i = 0
 		running = True
-		print "starting the receiver thread"
+		if self.debug:
+			print "starting the receiver thread"
 		while(running):
 			self.dataReady.acquire()
 			while not self.newError and not self.newA and self.receiverOn:
-				print "waiting"
+				if self.debug:
+					print "waiting"
 				self.dataReady.wait(2)
 				
 			if self.newError and self.newA:
@@ -36,11 +38,13 @@ class Receiver():
 				self.a = self.newA.popleft()
 				self.dataReady.release()
 			
-				print "receiving %r" % i
+				if self.debug:
+					print "receiving %r" % i
 				i = i + 1
 
-				print "length error %r" % len(self.error)
-				print "length a %r" % len(self.a)
+				if self.debug:
+					print "length error %r" % len(self.error)
+					print "length a %r" % len(self.a)
 
 				#check that output has enough past data, ie: at least len(A)
 				self.padding = 0
@@ -64,7 +68,8 @@ class Receiver():
 				self.dataReady.release()
 
 		#do end of thread stuff
-		print "hung up receiver"
+		if self.debug:
+			print "hung up receiver"
 
 
 	def receiveIdeal(self, error, A):
@@ -76,7 +81,8 @@ class Receiver():
 
 		#start thread if not started
 		if not self.receiverThread.isAlive():
-			print "picking up"
+			if self.debug:
+				print "picking up"
 			self.receiverOn = True
 			try:
 				self.receiverThread.start()
@@ -85,14 +91,16 @@ class Receiver():
 				self.receiverThread = Thread(target=self.receiverThread, args=())
 
 	def hangUp(self):
-		print "hanging up"
+		if self.debug:
+			print "hanging up"
 		self.dataReady.acquire()
 		self.receiverOn = False
 		self.dataReady.notify()
 		self.dataReady.release()
 
 		self.receiverThread.join()
-		print "confirmed receiver hung up"
+		if self.debug:
+			print "confirmed receiver hung up"
 
 	def synthesize(self):
 		for i in range(len(self.error)):
