@@ -43,44 +43,60 @@ def AMDF(x, min, max):
 
 	return amdf
 
-def classify(x, showplot=True):
-	amdf = AMDF(x, 20, 160)
+def classify(x, showplot=False):
+	amdfrange = (20, 160)
+	amdf = AMDF(x, amdfrange[0], amdfrange[1])
 	gain = rmsgain(x)
 	amdf = array(amdf)/gain
+	amdfgain = rmsgain(amdf)
 	found = []
 	
 	lowest = min(amdf)
 	highest = max(amdf)
 
-	classification = (False, -1, gain)
+	classification = (False, [], gain)
 
-	if highest-lowest > 1:
+	if highest-lowest > 0.85:
 		for i, v in enumerate(amdf):
-			if v < lowest+0.05:
+			if v < lowest+abs(amdfgain-lowest)*0.3:
 				found.append(i)
 
-		tonalcenter = 0
+		tonalcenters = [0]
 		tonalcount = 0
 		for i, f in enumerate(found):
-			tonalcenter += f+20
+			tonalcenters[-1] += f+amdfrange[0]
 			tonalcount += 1
 			if i < len(found)-1:
 				if found[i+1]-found[i] > 2:
-					break
+					tonalcenters[-1] = tonalcenters[-1]/float(tonalcount)
+					tonalcount = 0
+					tonalcenters.append(0)
+		if tonalcount == 0:
+			tonalcenters = tonalcenters[:-1]
+		else:
+			tonalcenters[-1] = tonalcenters[-1]/float(tonalcount)
 
-		tonalcenter = tonalcenter/float(tonalcount)
-
-		classification = (True, tonalcenter, gain)
+		classification = (True, tonalcenters, gain)
 
 	if showplot == True:
 		print classification
 		print max(amdf)-min(amdf)
+
 		subplot(2, 1, 1)
 		title("AMDF")
-		plot([20+i for i in range(len(amdf))], amdf)
+		plot([amdfrange[0]+i for i in range(len(amdf))], amdf)
+		if classification[0]:
+			for t in classification[1]:
+				plot(t, amdf[int(t)-amdfrange[0]], 'o', color="pink", markersize=20)
+			for f in found:
+				plot([f+amdfrange[0]], [amdf[f]], 'yo')
+			plot(amdf.tolist().index(highest)+amdfrange[0], highest, 'go')
+			plot(amdf.tolist().index(lowest)+amdfrange[0], lowest, 'ro')
+
 		subplot(2, 1, 2)
 		title("Signal")
 		plot(x)
+
 		show()
 
 	return classification
@@ -92,51 +108,7 @@ def rmsgain(x):
 	gain = gain/len(x)
 	return gain
 
-def AMDFTest():
-	t = array([i for i in range(800)])
-	signal = sin(2*pi/51*t)+sin(2*pi/54*t)+sin(2*pi/100*t)+sin(2*pi/25*t)+randn(len(t))
-	# signal = randn(len(t))
-
-	classification = classify(signal)
-
-	amdf = AMDF(signal, 20, 160)
-	found = []
-	
-	lowest = min(amdf)
-	highest = max(amdf)
-
-	if highest-lowest > 0.3:
-		for i, v in enumerate(amdf):
-			if v < lowest+0.05:
-				found.append(i)
-
-		tonalcenter = 0
-		tonalcount = 0
-		for i, f in enumerate(found):
-			tonalcenter += f+20
-			tonalcount += 1
-			if i < len(found)-1:
-				if found[i+1]-found[i] > 2:
-					break
-
-		tonalcenter = tonalcenter/float(tonalcount)
-
-	subplot(2, 1, 1)
-	plot(abs(fft(signal)))
-	subplot(2, 1 ,2)
-	plot([i+20 for i in range(len(amdf))], amdf)
-	if classification[0]:
-		plot(tonalcenter, amdf[int(tonalcenter)-20], 'o', color="pink", markersize=20, label="Tonal Center")
-	for f in found:
-		plot([f+20], [amdf[f]], 'yo')
-	plot(amdf.tolist().index(highest)+20, highest, 'go', label="Max Val")
-	plot(amdf.tolist().index(lowest)+20, lowest, 'ro', label="Min Val")
-	legend(loc = 4)
-	show()
-
-# AMDFTest()
-
-def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, plot=True):
+def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showplot=True):
 	#Set up receiver
 	recv = Receiver(lookback = lookback)
 	e_complete = zeros(0)
@@ -156,11 +128,16 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, plot=
 				e = idealError(signal[i*blocksize:(i+1)*blocksize], a, signal[i*blocksize-len(a):i*blocksize])
 		else:
 			classification = classify(signal[i*blocksize:(i+1)*blocksize])
+			classification[1].sort()
 
 			if classification[0]:
 				for i in range(len(e)):
-					if i%classification[1] == 0:
-						e[i] = 1
+					for p in classification[1]:
+						if i%p == 0:
+							e[i] = 1
+					# if i%classification[1][0] == 0:
+					# 	e[i] = 1
+
 			else:
 				e = randn(len(e))
 
@@ -174,12 +151,12 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, plot=
 	#complete the transmission
 	recv.hangUp()
 
-	if plot == True:
+	if showplot == True:
 		#Plot results
 		subplot(2, 1, 1)
 		plot(signal, label="original")
 		legend()
-		# plot(e_complete, label="error")
+		plot(e_complete, label="error")
 		subplot(2, 1, 2)
 		plot(recv.output, label="output")
 		# ylim([-5, 5])
@@ -200,16 +177,18 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, plot=
 
 # testblockLPC(signal, blocksize, 10)
 
-blocksize = 180
-numcoef = 10
+blocksize = 360
+chunk = 8000*4/blocksize*blocksize
+numcoef = 30
 audio = wave.read("signal-echo.wav")
-signal = audio[1][465000:465000+blocksize*5,0]/32767.0
+signal = audio[1][465000:465000+chunk,0]/32767.0
 
-rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=False, plot=False)
+rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=False)
 
 audio_out = (8000, array([[0, 0] for i in rebuilt], dtype=int16))
 audio_out[1][:,0] = array([int(r*32767.0) for r in rebuilt])
 audio_out[1][:,1] = array([int(r*32767.0) for r in rebuilt])
+
 # audio_out[1][:,1] = array([int(s*32767.0) for s in signal])
 
 wave.write("rebuilt.wav", audio_out[0], audio_out[1])
