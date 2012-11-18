@@ -1,6 +1,7 @@
 from pylab import *
 from receiver import Receiver
 from levinsondurbin import *
+import scipy.io.wavfile as wave
 
 # Questions
 # Autocorrelation of standard length
@@ -42,14 +43,18 @@ def AMDF(x, min, max):
 
 	return amdf
 
-def classify(x):
+def classify(x, showplot=True):
 	amdf = AMDF(x, 20, 160)
+	gain = rmsgain(x)
+	amdf = array(amdf)/gain
 	found = []
 	
 	lowest = min(amdf)
 	highest = max(amdf)
 
-	if highest-lowest > 0.3:
+	classification = (False, -1, gain)
+
+	if highest-lowest > 1:
 		for i, v in enumerate(amdf):
 			if v < lowest+0.05:
 				found.append(i)
@@ -65,9 +70,20 @@ def classify(x):
 
 		tonalcenter = tonalcenter/float(tonalcount)
 
-		return (True, tonalcenter)
-	else:
-		return (False, -1)
+		classification = (True, tonalcenter, gain)
+
+	if showplot == True:
+		print classification
+		print max(amdf)-min(amdf)
+		subplot(2, 1, 1)
+		title("AMDF")
+		plot([20+i for i in range(len(amdf))], amdf)
+		subplot(2, 1, 2)
+		title("Signal")
+		plot(x)
+		show()
+
+	return classification
 
 def rmsgain(x):
 	gain = 0
@@ -79,9 +95,9 @@ def rmsgain(x):
 def AMDFTest():
 	t = array([i for i in range(800)])
 	signal = sin(2*pi/51*t)+sin(2*pi/54*t)+sin(2*pi/100*t)+sin(2*pi/25*t)+randn(len(t))
+	# signal = randn(len(t))
 
 	classification = classify(signal)
-	print classification
 
 	amdf = AMDF(signal, 20, 160)
 	found = []
@@ -118,54 +134,37 @@ def AMDFTest():
 	legend(loc = 4)
 	show()
 
-def testblockLPC():
-	#build signal
-	blocksize = 180
-	numcoef = 10
-	t = array([i for i in range(blocksize*3)])
-	signal = sin(2*pi/35*t+20)+0.1*randn(len(t))
-	signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3+0.1*randn(len(t))
-	signal = append(signal, 0.1*randn(len(t)))
-	t = append(t, array([i for i in range(blocksize*3)]))
+# AMDFTest()
 
-	# t = array([i for i in range(1800)])
-	# signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
-
+def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, plot=True):
 	#Set up receiver
-	recv = Receiver(lookback = True)
+	recv = Receiver(lookback = lookback)
 	e_complete = zeros(0)
 
 	#Process blocks
-	for i in range(len(t)/blocksize):
+	for i in range(len(signal)/blocksize):
 		#find LPC coefficients
 		a = levinson(signal[i*blocksize:(i+1)*blocksize], numcoef, False)
 		
 		#build error
-		if i == 0 or recv.lookback == False:
-			e_ideal = idealError(signal[i*blocksize:(i+1)*blocksize], a, zeros(len(a)))		
+		e = zeros(blocksize)
+
+		if ideal == True:
+			if i == 0 or recv.lookback == False:
+				e = idealError(signal[i*blocksize:(i+1)*blocksize], a, zeros(len(a)))		
+			else:
+				e = idealError(signal[i*blocksize:(i+1)*blocksize], a, signal[i*blocksize-len(a):i*blocksize])
 		else:
-			e_ideal = idealError(signal[i*blocksize:(i+1)*blocksize], a, signal[i*blocksize-len(a):i*blocksize])
-		e = e_ideal
+			classification = classify(signal[i*blocksize:(i+1)*blocksize])
 
-		classification = classify(signal[i*blocksize:(i+1)*blocksize])
-		gain = rmsgain(signal[i*blocksize:(i+1)*blocksize])
-		print classification
-		print gain
+			if classification[0]:
+				for i in range(len(e)):
+					if i%classification[1] == 0:
+						e[i] = 1
+			else:
+				e = randn(len(e))
 
-		e_white = randn(len(e_ideal))
-		e_white = e_white*gain
-		
-		e_imp = zeros(len(e_ideal))
-		if classification[0]:
-			for i in range(len(e_imp)):
-				if i%classification[1] == 0:
-					e_imp[i] = 1
-		e_imp = e_imp*gain
-
-		if classification[0]:
-			e = e_imp
-		else:
-			e = e_white
+			e = e*classification[2]
 
 		e_complete = append(e_complete, e)
 
@@ -175,15 +174,42 @@ def testblockLPC():
 	#complete the transmission
 	recv.hangUp()
 
-	#Plot results
-	subplot(2, 1, 1)
-	plot(signal, label="original")
-	legend()
-	# plot(e_complete, label="error")
-	subplot(2, 1, 2)
-	plot(recv.output/max(abs(array(recv.output)))*max(abs(array(signal))), label="output") #Scale to the same range
-	# ylim([-5, 5])
-	legend()
-	show()
+	if plot == True:
+		#Plot results
+		subplot(2, 1, 1)
+		plot(signal, label="original")
+		legend()
+		# plot(e_complete, label="error")
+		subplot(2, 1, 2)
+		plot(recv.output, label="output")
+		# ylim([-5, 5])
+		legend()
+		show()
 
-testblockLPC()
+	return recv.output
+
+# blocksize = 180
+# t = array([i for i in range(blocksize*3)])
+# # signal = sin(2*pi/35*t+20)+0.1*randn(len(t))
+# signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3+0.1*randn(len(t))
+# signal = append(signal, 0.1*randn(len(t)))
+# t = append(t, array([i for i in range(blocksize*3)]))
+
+# # t = array([i for i in range(1800)])
+# # signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
+
+# testblockLPC(signal, blocksize, 10)
+
+blocksize = 180
+numcoef = 10
+audio = wave.read("signal-echo.wav")
+signal = audio[1][465000:465000+blocksize*5,0]/32767.0
+
+rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=False, plot=False)
+
+audio_out = (8000, array([[0, 0] for i in rebuilt], dtype=int16))
+audio_out[1][:,0] = array([int(r*32767.0) for r in rebuilt])
+audio_out[1][:,1] = array([int(r*32767.0) for r in rebuilt])
+# audio_out[1][:,1] = array([int(s*32767.0) for s in signal])
+
+wave.write("rebuilt.wav", audio_out[0], audio_out[1])

@@ -70,7 +70,7 @@ def levinson(x, p, normalize=False):
 
 	for i in range(p+1):
 		r[i] = autocorrelate(x, i)
-		# r[i] = autocorrelate(x[:len(x)-(p+1)+i], i)
+		# r[i] = autocorrelate(x[:len(x)-(p+1)+i], i) #we could also do the computation with even length
 
 	if normalize:
 		factor = r[0]
