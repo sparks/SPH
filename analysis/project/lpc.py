@@ -43,7 +43,7 @@ def AMDF(x, min, max):
 
 	return amdf
 
-def classify(x, showplot=False):
+def classify(x, showplot=True):
 	amdfrange = (20, 160)
 	amdf = AMDF(x, amdfrange[0], amdfrange[1])
 	gain = rmsgain(x)
@@ -92,6 +92,7 @@ def classify(x, showplot=False):
 				plot([f+amdfrange[0]], [amdf[f]], 'yo')
 			plot(amdf.tolist().index(highest)+amdfrange[0], highest, 'go')
 			plot(amdf.tolist().index(lowest)+amdfrange[0], lowest, 'ro')
+			plot([amdfrange[0]+i for i in range(len(amdf))], [amdfgain for i in range(len(amdf))])
 
 		subplot(2, 1, 2)
 		title("Signal")

@@ -6,8 +6,13 @@
 #ifndef CLASSIFY_H
 #define CLASSIFY_H
 
+typedef enum ClassificationTypeEnum {
+	WHITE,
+	TONAL
+} classificationtype;
+ 
 typedef struct ClassificationStruct {
-	int type;
+	classificationtype type;
     int period;
     float gain;
 } classification;
