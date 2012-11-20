@@ -1,8 +1,12 @@
 #include <stdio.h>
+#include <errno.h>
 #include "lpc.h"
 #include "classify.h"
 #include "levinsondurbin.h"
 
+//I/O files
+#define IN_FILENAME "signal-echo.raw"
+#define OUTPUT_FILENAME "output.raw"
 
 //program defines
 #define BLOCKSIZE 360
@@ -57,9 +61,9 @@ int main() {
 		fwrite(data_out, sizeof(short), datacount, outfile);
 		
 		//switch data out and data out old
-		*swap = out;
-		out = out_old;
-		out_old = swap;
+		swap = data_out;
+		data_out = data_out_old;
+		data_out_old = swap;
 	} while (datacount == BLOCKSIZE);
 
     /* Close the input and output files, this also flushes all
@@ -72,12 +76,18 @@ void reset(void) {
 	int i;
 
 	for(i = 0;i < BLOCKSIZE;i++) {
-		DATA_OUT_OLD[i] = 0;
+		DATA_OUT_1[i] = DATA_OUT_2[i] = 0;
 	}
 }
 
 void encode_block(short in[], float a[], int numcoef, float e[], int blocksize){
+	int i;
 
+	// get a coeficients
+	//levinson(in, blocksize, a, numcoef);
+
+	// get error
+	
 }
 
 void synthesize_block(float a[], int numcoef, float e[], int blocksize, short out[], short out_old[]){
