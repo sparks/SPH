@@ -2,7 +2,7 @@
 
 ##Tool##
 
-CXX = g++
+CXX = gcc
 
 CXXCOMPILE = $(CXX)
 INCLUDES = -I./
