@@ -6,4 +6,14 @@
 #ifndef CLASSIFY_H
 #define CLASSIFY_H
 
+typedef struct ClassificationStruct {
+	int type;
+    int period;
+    float gain;
+} classification;
+
+float rmsgain(float*, int);
+void AMDF(float*, int, float, float*, int, int);
+classification classify(float*, int);
+
 #endif
