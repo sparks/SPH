@@ -97,3 +97,8 @@ def levinson(x, p, normalize=False):
 
 	a[0][0] = 1
 	return a[0]
+
+if __name__ == "__main__":
+	testsignal = array([1,2,3,4,5,6])
+	print levinson(testsignal, 4)
+	print lpc_ref(testsignal, 4)
