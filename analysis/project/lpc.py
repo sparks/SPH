@@ -44,7 +44,7 @@ def AMDF(x, min, max):
 	return amdf
 
 def classify(x, showplot=False):
-	amdfrange = (30, 100)
+	amdfrange = (20, 160)
 	amdf = AMDF(x, amdfrange[0], amdfrange[1])
 	gain = rmsgain(x)
 	amdf = array(amdf)/gain
