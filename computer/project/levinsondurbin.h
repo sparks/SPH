@@ -6,11 +6,8 @@
 #ifndef LEVINSONDURBIN_H
 #define LEVINSONDURBIN_H
 
+float autocorrelate(float *x, int len, int k);
 
-void levinson(short *in, int blocksize, float *coef, int numcoef);
-
-float autocorrelate(short *in, int blocksize, int i);
-
-float correlate(short x[], int length, int offset);
+void levinson(float *x, int len, float *coef, int numcoef);
 
 #endif
