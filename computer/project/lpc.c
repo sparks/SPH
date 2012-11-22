@@ -40,6 +40,8 @@ float a[NUMCOEF]; // coefs
 int synthbuf_index;
 float synthbuf[NUMCOEF]; //lookback buffer
 
+classification cl;
+
 float e[BLOCKSIZE]; // ideal error values
 int ebuf_index;
 float ebuf[NUMCOEF]; //lookback buffer
@@ -49,6 +51,13 @@ int main() {
 	// float ta[4];
 	// levinson(test, 6, ta, 4);
 	// printf("%f %f %f %f\n", ta[0], ta[1], ta[2], ta[3]);
+
+	// printf("%f\n",rmsgain(test, 6));
+	// float amdf[] = {0, 0, 0};
+	// AMDF(test, 6, 3, amdf, 3, 10);
+	// printf("%f %f %f\n", amdf[0], amdf[1], amdf[2]);
+
+	// return 0;
 
 	FILE *infile, *outfile;
 	int datacount;
@@ -117,6 +126,7 @@ void process_block(short* in, short* out, int len) {
 
 	//When input block has been filled and encode flag is raised by interrupt
 	levinson(encodeptr, len, a, NUMCOEF);
+	// cl = classify(encodeptr, len);
 	ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
 	synthesize_block(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
 	//Raise decoded flag for reference

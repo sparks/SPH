@@ -1,4 +1,5 @@
 #include "classify.h"
+#include <stdio.h>
 
 #define MIN_AMDF 20
 #define MAX_AMDF 160
@@ -10,7 +11,7 @@ float rmsgain(float* x, int len) {
 	gain = 0;
 
 	for(i = 0;i < len;i++) {
-		gain += x[i];
+		gain += absf(x[i]);
 	}
 
 	gain = gain/len;
@@ -26,8 +27,8 @@ void AMDF(float* x, int len, float gain, float* amdf, int min, int max) {
 
 	for(p = min;p < max;p++) { //This is n^2 can we improve?
 		amdf[p-min] = 0;
-		for(i = p; p < len; p++) {
-			amdf[p-min] += abs(x[i]-x[i-p]);
+		for(i = p; i < len; i++) {
+			amdf[p-min] += absf(x[i]-x[i-p]);
 		}
 		amdf[p-min] = amdf[p-min]/(len-p)/gain;
 	}
@@ -56,9 +57,12 @@ classification classify(float* x, int len) {
 	if(highest-lowest > 0.85) {
 		amdfgain = rmsgain(amdf, MAX_AMDF-MIN_AMDF);
 
+		period_sum = 0;
+		period_count = 0;
+
 		for(i = 0;i < MAX_AMDF-MIN_AMDF;i++) {
-			if(amdf[i] > lowest+abs(amdfgain-lowest)*0.3) {
-				if(c.period == -1 || i < c.period+2) {
+			if(amdf[i] < lowest+absf(amdfgain-lowest)*0.3) {
+				if(c.period == -1 || i < (c.period-20+2)) {
 					c.period = i+20;
 					period_sum += i+20;
 					period_count++;
@@ -73,4 +77,9 @@ classification classify(float* x, int len) {
 	}
 
 	return c;
+}
+
+float absf(float v) {
+	if(v < 0) return -v;
+	else return v;
 }

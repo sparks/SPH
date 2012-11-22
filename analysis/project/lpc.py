@@ -54,6 +54,8 @@ def classify(x, showplot=False):
 	lowest = min(amdf)
 	highest = max(amdf)
 
+	print gain
+
 	classification = (False, [], gain)
 
 	if highest-lowest > 0.85:
@@ -179,10 +181,11 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showp
 # testblockLPC(signal, blocksize, 10)
 
 blocksize = 180
+offset = 0
 chunk = 180*4/blocksize*blocksize
 numcoef = 30
 audio = wave.read("signal-echo.wav")
-signal = audio[1][465000:465000+chunk,0]/32767.0
+signal = audio[1][offset:offset+chunk,0]/32767.0
 
 rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=True, lookback=False)
 

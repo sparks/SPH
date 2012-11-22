@@ -7,8 +7,8 @@
 #define CLASSIFY_H
 
 typedef enum ClassificationTypeEnum {
-	WHITE,
-	TONAL
+	WHITE = 0,
+	TONAL = 1
 } classificationtype;
  
 typedef struct ClassificationStruct {
@@ -22,5 +22,7 @@ float rmsgain(float* x, int len);
 void AMDF(float* x, int len, float gain, float* amdf, int min, int max);
 
 classification classify(float* x, int len);
+
+float absf(float v);
 
 #endif
