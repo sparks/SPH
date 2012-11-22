@@ -1,41 +1,38 @@
 #include "levinsondurbin.h"
-#include <stdio.h>
 
 void levinson(float *x, int len, float *coef, int numcoef){
 	int i, j;
 	float k, e;
-	float r[numcoef+1];
+	float r[numcoef];
 
-	float coef_new[numcoef+1];
+	float coef_new[numcoef];
 
 	//autocorrelate
-	for(i = 0; i < numcoef+1; i++){
-		r[i] = autocorrelate(x, len, i);
+	for(i = 0; i < numcoef; i++){
+		r[i] = autocorrelate(x, len, i+1);
 	}
 
-	e = r[0];
+	e = autocorrelate(x, len, 0);
 
-	for(i = 1; i < numcoef+1; i++){
+	for(i = 0; i < numcoef; i++){
 		k = r[i];
-		for(j = 1; j < i; j++){
-			k += coef[j]*r[i-j];
+		for(j = 0; j < i; j++){
+			k -= coef[j]*r[i-j-1];
 		}
 
-		k = -k/e;
+		k = k/e;
 		coef_new[i] = k;
 
-		for(j = 1; j < i; j++){
-			coef_new[j] = coef[j] + k*coef[i-j];
+		for(j = 0; j < i; j++){
+			coef_new[j] = coef[j] - k*coef[i-j-1];
 		}
 
 		e = (1 - k*k)*e;
 
-		for(j = 1; j < i+1;j++) {
+		for(j = 0; j < i+1;j++) {
 			coef[j] = coef_new[j];
 		}
 	}
-
-	coef[0] = 1;
 }
 
 float autocorrelate(float *x, int len, int k){
