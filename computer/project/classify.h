@@ -17,8 +17,10 @@ typedef struct ClassificationStruct {
     float gain;
 } classification;
 
-float rmsgain(float*, int);
-void AMDF(float*, int, float, float*, int, int);
-classification classify(float*, int);
+float rmsgain(float* x, int len);
+
+void AMDF(float* x, int len, float gain, float* amdf, int min, int max);
+
+classification classify(float* x, int len);
 
 #endif

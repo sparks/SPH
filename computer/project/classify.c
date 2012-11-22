@@ -26,7 +26,7 @@ void AMDF(float* x, int len, float gain, float* amdf, int min, int max) {
 
 	for(p = min;p < max;p++) { //This is n^2 can we improve?
 		amdf[p-min] = 0;
-		for(i = p;p < len;p++) {
+		for(i = p; p < len; p++) {
 			amdf[p-min] += abs(x[i]-x[i-p]);
 		}
 		amdf[p-min] = amdf[p-min]/(len-p)/gain;
@@ -53,8 +53,6 @@ classification classify(float* x, int len) {
 		if(amdf[i] > highest) highest = amdf[i];
 	}
 	
-	// found = []
-
 	if(highest-lowest > 0.85) {
 		amdfgain = rmsgain(amdf, MAX_AMDF-MIN_AMDF);
 
