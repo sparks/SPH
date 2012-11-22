@@ -44,7 +44,7 @@ def AMDF(x, min, max):
 	return amdf
 
 def classify(x, showplot=False):
-	amdfrange = (20, 160)
+	amdfrange = (30, 100)
 	amdf = AMDF(x, amdfrange[0], amdfrange[1])
 	gain = rmsgain(x)
 	amdf = array(amdf)/gain
@@ -53,8 +53,6 @@ def classify(x, showplot=False):
 	
 	lowest = min(amdf)
 	highest = max(amdf)
-
-	print gain
 
 	classification = (False, [], gain)
 
@@ -181,13 +179,13 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showp
 # testblockLPC(signal, blocksize, 10)
 
 blocksize = 180
-offset = 0
-chunk = 180*4/blocksize*blocksize
+offset = 465000
+chunk = 8000*4/blocksize*blocksize
 numcoef = 30
 audio = wave.read("signal-echo.wav")
 signal = audio[1][offset:offset+chunk,0]/32767.0
 
-rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=True, lookback=False)
+rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=False, lookback=True)
 
 audio_out = (8000, array([[0, 0] for i in rebuilt], dtype=int16))
 audio_out[1][:,0] = array([int(r*32767.0) for r in rebuilt])
