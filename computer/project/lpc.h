@@ -6,7 +6,14 @@
 #ifndef LPC_H
 #define LPC_H
 
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+
 #include "classify.h"
+#include "levinsondurbin.h"
+
+#endif
 
 void process_block(short* in, short* out, int len);
 
@@ -25,4 +32,6 @@ void synthesize_block_classify(float *x, int len, float *coef, int numcoef, clas
 void synthesize_block_white(float *x, int len, float *coef, int numcoef);
 void synthesize_block_tonal(float *x, int len, float *coef, int numcoef, int period);
 
-#endif
+float randomFloat(void);
+short toShort(float v);
+float toFloat(short v);

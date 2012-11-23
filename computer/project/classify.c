@@ -1,5 +1,4 @@
 #include "classify.h"
-#include <stdio.h>
 
 #define MIN_AMDF 20
 #define MAX_AMDF 160

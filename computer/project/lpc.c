@@ -1,13 +1,4 @@
-#include <stdio.h>
-#include <errno.h>
-#include <stdlib.h>
-
 #include "lpc.h"
-#include "levinsondurbin.h"
-
-float randomFloat(void);
-short toShort(float v);
-float toFloat(short v);
 
 //I/O files
 #define IN_FILENAME "signal-echo.raw"

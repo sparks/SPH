@@ -6,8 +6,8 @@
 #ifndef LEVINSONDURBIN_H
 #define LEVINSONDURBIN_H
 
+#endif
+
 float autocorrelate(float *x, int len, int k);
 
 void levinson(float *x, int len, float *coef, int numcoef);
-
-#endif

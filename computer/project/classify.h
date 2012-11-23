@@ -6,6 +6,8 @@
 #ifndef CLASSIFY_H
 #define CLASSIFY_H
 
+#endif
+
 typedef enum ClassificationTypeEnum {
 	WHITE = 0,
 	TONAL = 1
@@ -24,5 +26,3 @@ void AMDF(float* x, int len, float gain, float* amdf, int min, int max);
 classification classify(float* x, int len);
 
 float absf(float v);
-
-#endif
