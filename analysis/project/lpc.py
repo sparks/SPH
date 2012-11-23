@@ -45,9 +45,16 @@ def AMDF(x, min, max):
 
 def classify(x, showplot=False):
 	amdfrange = (20, 160)
+	acfun = zeros(len(x)/2)
+	for k, ac in enumerate(acfun):
+		acfun[k] = autocorrelate(x[:len(x)/2+k], k)
+
+	acamdf = AMDF(acfun, amdfrange[0], amdfrange[1])
 	amdf = AMDF(x, amdfrange[0], amdfrange[1])
 	gain = rmsgain(x)
-	amdf = array(amdf)/gain
+	# amdf = array(amdf)/gain
+	amdf = array(acamdf)/gain
+	amdf = amdf[0:40]
 	amdfgain = rmsgain(amdf)
 	found = []
 	
@@ -82,7 +89,7 @@ def classify(x, showplot=False):
 		print classification
 		print max(amdf)-min(amdf)
 
-		subplot(2, 1, 1)
+		subplot(2, 2, 1)
 		title("AMDF")
 		plot([amdfrange[0]+i for i in range(len(amdf))], amdf)
 		if classification[0]:
@@ -94,9 +101,18 @@ def classify(x, showplot=False):
 			plot(amdf.tolist().index(lowest)+amdfrange[0], lowest, 'ro')
 			plot([amdfrange[0]+i for i in range(len(amdf))], [amdfgain for i in range(len(amdf))])
 
-		subplot(2, 1, 2)
+		subplot(2, 2, 2)
 		title("Signal")
 		plot(x)
+
+		subplot(2, 2, 3)
+		title("AC")
+		plot(acfun)
+		
+		subplot(2, 2, 4)
+		title("AC AMDF")
+		plot([i+amdfrange[0] for i in range(len(acamdf))], acamdf)
+	
 
 		show()
 
@@ -113,7 +129,7 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showp
 	#Set up receiver
 	recv = Receiver(lookback = lookback)
 	e_complete = zeros(0)
-
+	impcount = 0
 	#Process blocks
 	for i in range(len(signal)/blocksize):
 		#find LPC coefficients
@@ -134,12 +150,14 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showp
 			if classification[0]:
 				for i in range(len(e)):
 					for p in classification[1]:
-						if i%p == 0:
+						if impcount%p == 0:
 							e[i] = 1
+							impcount += 1
 					# if i%classification[1][0] == 0:
 					# 	e[i] = 1
 
 			else:
+				impcount = 0
 				e = randn(len(e))
 
 			e = e*classification[2]
@@ -183,7 +201,8 @@ offset = 465000
 chunk = 8000*4/blocksize*blocksize
 numcoef = 30
 audio = wave.read("signal-echo.wav")
-signal = audio[1][offset:offset+chunk,0]/32767.0
+signal = audio[1][:,0]/32767.0
+# signal = audio[1][offset:offset+chunk,0]/32767.0
 
 rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=False, lookback=True)
 

@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include "lpc.h"
-#include "classify.h"
 #include "levinsondurbin.h"
+
+float randomFloat(void);
 
 //I/O files
 #define IN_FILENAME "signal-echo.raw"
@@ -16,7 +18,8 @@ short DATA_IN[BLOCKSIZE];
 short DATA_OUT[BLOCKSIZE];
 
 //program vars
-#define NUMCOEF 30
+#define NUMCOEF 10
+#define GAINCOMP 2.0
 
 int in_index;
 float *inputptr;
@@ -47,6 +50,12 @@ int ebuf_index;
 float ebuf[NUMCOEF]; //lookback buffer
 
 int main() {
+	// reset();
+	// printf("%f\n", randomFloat());
+	// printf("%f\n", randomFloat());
+	// printf("%f\n", randomFloat());
+	// printf("%f\n", randomFloat());
+	// return 0;
 	// float test[] = {1,2,3,4,5,6};
 	// float ta[4];
 	// levinson(test, 6, ta, 4);
@@ -115,6 +124,8 @@ void reset(void) {
 	out_index = BLOCKSIZE; //TEMPORARY TO BE CHANGED FOR REALTIME
 	decodeptr = DATA_IN_1;
 	outputptr = DATA_IN_2;
+
+	srand(time(NULL));
 }
 
 void process_block(short* in, short* out, int len) {
@@ -126,9 +137,10 @@ void process_block(short* in, short* out, int len) {
 
 	//When input block has been filled and encode flag is raised by interrupt
 	levinson(encodeptr, len, a, NUMCOEF);
-	// cl = classify(encodeptr, len);
+	cl = classify(encodeptr, len);
 	ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
-	synthesize_block(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
+	// synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
+	synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
 	//Raise decoded flag for reference
 
 	for(i = 0;i < len;i++) {
@@ -178,7 +190,7 @@ void ideal_error(float *error, float *x, int len, float *coef, int numcoef) {
 		approx = 0;
 		for(j = 0; j < numcoef; j++){
 			// use the old data in for the first numcoef values
-			approx += a[j]*ebuf[(ebuf_index+numcoef-j)%numcoef];
+			approx += a[j]*ebuf[(ebuf_index+numcoef-j-1)%numcoef];
 		}
 		
 		ebuf[ebuf_index] = x[i];
@@ -188,7 +200,7 @@ void ideal_error(float *error, float *x, int len, float *coef, int numcoef) {
 	}
 }
 
-void synthesize_block(float *x, int len, float *coef, int numcoef, float *error) {
+void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *error) {
 	int i, j;
 	float approx;
 
@@ -196,13 +208,47 @@ void synthesize_block(float *x, int len, float *coef, int numcoef, float *error)
 		approx = 0;
 		for(j = 0; j < numcoef; j++){
 			// use the old data in for the first numcoef values
-			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j)%numcoef];
+			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
 		}
+
+		x[i] = error[i] + approx;
 		
 		synthbuf[synthbuf_index] = x[i];
 		synthbuf_index = (synthbuf_index+1)%numcoef;
-
-		x[i] = error[i] + approx;
 	}
 	//NB there's a synthesis error with the "last" block, but this will never happen in realtime since there is never a "last" block
+}
+
+void synthesize_block_classify(float *x, int len, float *coef, int numcoef, classification cl) {
+	int i, j;
+	float approx, error;
+
+	for(i = 0; i < len; i++){
+		approx = 0;
+		for(j = 0; j < numcoef; j++){
+			// use the old data in for the first numcoef values
+			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
+		}
+
+		if(cl.type == WHITE) {
+			error = randomFloat()*cl.gain*GAINCOMP;
+		} else if(cl.type == TONAL) {
+			if(i%cl.period == 0) {
+				error = cl.gain*GAINCOMP;
+			} else {
+				error = 0;
+			}
+		} else {
+			error = 0;
+		}
+
+		x[i] = error + approx;
+		
+		synthbuf[synthbuf_index] = x[i];
+		synthbuf_index = (synthbuf_index+1)%numcoef;
+	}
+}
+
+float randomFloat(void) {
+      return (float)rand()/(float)RAND_MAX;
 }
