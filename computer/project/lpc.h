@@ -14,8 +14,13 @@ void process_sample(short in);
 short generate_sample(void);
 
 void reset(void);
+
 void ideal_error(float *error, float *x, int len, float *coef, int numcoef);
+void compress_fixed_point(short *comp, float *x, int len, int bit_depth);
+
 void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *error);
+void synthesize_block_white(float *x, int len, float *coef, int numcoef);
+void synthesize_block_tonal(float *x, int len, float *coef, int numcoef, int period);
 void synthesize_block_classify(float *x, int len, float *coef, int numcoef, classification cl);
 
 #endif

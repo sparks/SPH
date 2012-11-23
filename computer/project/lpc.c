@@ -6,6 +6,8 @@
 #include "levinsondurbin.h"
 
 float randomFloat(void);
+short toShort(float v);
+float toFloat(short v);
 
 //I/O files
 #define IN_FILENAME "signal-echo.raw"
@@ -48,6 +50,8 @@ classification cl;
 float e[BLOCKSIZE]; // ideal error values
 int ebuf_index;
 float ebuf[NUMCOEF]; //lookback buffer
+
+short e_fixed_point[BLOCKSIZE];
 
 int main() {
 	// reset();
@@ -139,8 +143,13 @@ void process_block(short* in, short* out, int len) {
 	levinson(encodeptr, len, a, NUMCOEF);
 	cl = classify(encodeptr, len);
 	ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
+	compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 4);
+
 	// synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
-	synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
+	// synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
+	// synthesize_block_white(decodeptr, BLOCKSIZE, a, NUMCOEF);
+	synthesize_block_tonal(decodeptr, BLOCKSIZE, a, NUMCOEF, 70);
+
 	//Raise decoded flag for reference
 
 	for(i = 0;i < len;i++) {
@@ -150,7 +159,7 @@ void process_block(short* in, short* out, int len) {
 
 //Stand in for the receive interrupt
 void process_sample(short in) {
-	inputptr[in_index] = ((float)in)/32768;
+	inputptr[in_index] = toFloat(in);
 	in_index++;
 
 	if(in_index == BLOCKSIZE) {
@@ -176,7 +185,7 @@ short generate_sample(void) {
 		outputptr = tmp;
 	}
 
-	output = (short)(outputptr[out_index]*32768);
+	output = toShort(outputptr[out_index]);
 	out_index++;
 
 	return output;
@@ -200,6 +209,14 @@ void ideal_error(float *error, float *x, int len, float *coef, int numcoef) {
 	}
 }
 
+void compress_fixed_point(short *comp, float *x, int len, int bit_depth) {
+	int i;
+
+	for(i = 0; i < len; i++) {
+		comp[i] = toShort(x[i]);
+	}
+}
+
 void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *error) {
 	int i, j;
 	float approx;
@@ -217,6 +234,22 @@ void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *
 		synthbuf_index = (synthbuf_index+1)%numcoef;
 	}
 	//NB there's a synthesis error with the "last" block, but this will never happen in realtime since there is never a "last" block
+}
+
+void synthesize_block_white(float *x, int len, float *coef, int numcoef) {
+	classification cl;
+	cl.type = WHITE;
+	cl.gain = 0.05;
+	cl.period = -1;
+	synthesize_block_classify(x, len, coef, numcoef, cl);
+}
+
+void synthesize_block_tonal(float *x, int len, float *coef, int numcoef, int period) {
+	classification cl;
+	cl.type = TONAL;
+	cl.gain = 0.1;
+	cl.period = period;
+	synthesize_block_classify(x, len, coef, numcoef, cl);
 }
 
 void synthesize_block_classify(float *x, int len, float *coef, int numcoef, classification cl) {
@@ -251,4 +284,12 @@ void synthesize_block_classify(float *x, int len, float *coef, int numcoef, clas
 
 float randomFloat(void) {
       return (float)rand()/(float)RAND_MAX;
+}
+
+short toShort(float v) {
+	return (short)(v*32768);
+}
+
+float toFloat(short v) {
+	return ((float)v)/32768.0;
 }

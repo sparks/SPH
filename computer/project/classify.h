@@ -13,8 +13,8 @@ typedef enum ClassificationTypeEnum {
  
 typedef struct ClassificationStruct {
 	classificationtype type;
+	float gain;
     int period;
-    float gain;
 } classification;
 
 float rmsgain(float* x, int len);
