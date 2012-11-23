@@ -143,12 +143,12 @@ void process_block(short* in, short* out, int len) {
 	levinson(encodeptr, len, a, NUMCOEF);
 	cl = classify(encodeptr, len);
 	ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
-	compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 4);
-
 	// synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
+	compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 8);
+	synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, 8);
 	// synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
 	// synthesize_block_white(decodeptr, BLOCKSIZE, a, NUMCOEF);
-	synthesize_block_tonal(decodeptr, BLOCKSIZE, a, NUMCOEF, 70);
+	// synthesize_block_tonal(decodeptr, BLOCKSIZE, a, NUMCOEF, 70);
 
 	//Raise decoded flag for reference
 
@@ -213,7 +213,7 @@ void compress_fixed_point(short *comp, float *x, int len, int bit_depth) {
 	int i;
 
 	for(i = 0; i < len; i++) {
-		comp[i] = toShort(x[i]);
+		comp[i] = (toShort(x[i]) >> (16-bit_depth));
 	}
 }
 
@@ -235,6 +235,25 @@ void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *
 	}
 	//NB there's a synthesis error with the "last" block, but this will never happen in realtime since there is never a "last" block
 }
+
+void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth) {
+	int i, j;
+	float approx;
+
+	for(i = 0; i < len; i++){
+		approx = 0;
+		for(j = 0; j < numcoef; j++){
+			// use the old data in for the first numcoef values
+			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
+		}
+
+		x[i] = toFloat((error[i] << (16-bit_depth))) + approx;
+		
+		synthbuf[synthbuf_index] = x[i];
+		synthbuf_index = (synthbuf_index+1)%numcoef;
+	}
+}
+
 
 void synthesize_block_white(float *x, int len, float *coef, int numcoef) {
 	classification cl;
