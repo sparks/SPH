@@ -88,17 +88,17 @@ int main() {
 
 	while(1) {
 		if(encode_flag) {
+			encode_flag = 2;
 			levinson(encodeptr, len, a, NUMCOEF);
-			
+			encode_flag = 3;
 			ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
-			encode_flag = 0; 
+			encode_flag = 0;
 			//encodeptr only cares that this point is reached before the next buffer swap
+
 			//Should we ping pong the a/e array aswell?
-			if(decode_flag) {
-				//BAD we are going to overwrite data
-			}
-			synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
 			decode_flag = 1;
+			synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
+			decode_flag = 0;
 			//There is some serious timing issues with the decode buffre we need a diagram ....
 
 
@@ -165,7 +165,7 @@ int main() {
  		encodeptr = inputptr;
  		inputptr = tmp;
 
- 		if(encode_flag) {
+ 		if(encode_flag > 0) {
  			//bad we didn't process before the next full buf
  		}
  		encode_flag = 1;
@@ -179,13 +179,16 @@ int main() {
  	out_index++;
 
  	if(out_index == BLOCKSIZE) { //MOVE DOWN FOR REALTIME
- 		out_index = 0;
+ 		if(decode_flag > 1) {
+ 			//Inside a synthesis block, do not swap 
+ 			out_index--;
+ 		} else {
+	 		out_index = 0;
 
- 		tmp = decodeptr;
- 		decodeptr = outputptr;
- 		outputptr = tmp;
-
- 		decode_flag = 0
+	 		tmp = decodeptr;
+	 		decodeptr = outputptr;
+	 		outputptr = tmp;
+	 	}
  	}
 
  	return output;
