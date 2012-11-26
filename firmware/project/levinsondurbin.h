@@ -6,6 +6,8 @@
 #ifndef LEVINSONDURBIN_H
 #define LEVINSONDURBIN_H
 
+#include "parameters.h"
+
 #endif
 
 float autocorrelate(float *x, int len, int k);

@@ -1,11 +1,11 @@
 #include "levinsondurbin.h"
 
+float r[NUMCOEF];
+float coef_new[NUMCOEF];
+
 void levinson(float *x, int len, float *coef, int numcoef){
 	int i, j;
 	float k, e;
-	float r[numcoef];
-
-	float coef_new[numcoef];
 
 	//autocorrelate
 	for(i = 0; i < numcoef; i++){

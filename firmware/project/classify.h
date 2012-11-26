@@ -6,6 +6,8 @@
 #ifndef CLASSIFY_H
 #define CLASSIFY_H
 
+#include "parameters.h"
+
 #endif
 
 typedef enum ClassificationTypeEnum {

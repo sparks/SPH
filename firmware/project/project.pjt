@@ -1,7 +1,7 @@
 ; Code Composer Project File, Version 2.0 (do not modify or remove this line)
 
 [Project Settings]
-ProjectDir="H:\SPH\firmware\lab3\"
+ProjectDir="H:\SPH\firmware\project\"
 ProjectType=Executable
 CPUFamily=TMS320C67XX
 Tool="Compiler"
@@ -12,8 +12,9 @@ Config="Debug"
 Config="Release"
 
 [Source Files]
+Source="classify.c"
 Source="Configuration1.cdb"
-Source="convolve_as_func.sa"
+Source="levinsondurbin.c"
 Source="main.c"
 Source="main.h"
 
@@ -29,10 +30,10 @@ Options=-g -k -pm -o3 -fr"$(Proj_dir)\Debug" -i"H:\SPH\firmware\lib\dsk6713\incl
 Options=-k -pm -os -o3 -fr"$(Proj_dir)\Release" -i"H:\SPH\firmware\lib\dsk6713\include" -d"CHIP_6713" -mw -mv6700
 
 ["Linker" Settings: "Debug"]
-Options=-c -m".\Debug\lab3.map" -o".\Debug\lab3.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
+Options=-c -m".\Debug\project.map" -o".\Debug\project.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
 
 ["Linker" Settings: "Release"]
-Options=-c -m".\Release\lab3.map" -o".\Release\lab3.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
+Options=-c -m".\Release\project.map" -o".\Release\project.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
 
 ["main.h" Settings: "Debug"]
 ExcludeFromBuild=true

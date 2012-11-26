@@ -26,14 +26,7 @@ Uint32 in_tmp = 0, out_tmp = 0;
 // used to communicate between the main run loop and the interrupts
 // to know when input/output samples are ready to be processes/output
 // channel flag is used to switch between buffering left and right channels
-volatile in_channel_flag = 0, out_channel_flag = 0, encode_flag = 0, decode_flag = 0;
-
-//File I/O buffers
-#define BLOCKSIZE 180
-
-//program vars
-#define NUMCOEF 10
-#define GAINCOMP 2.0
+volatile Uint16 in_channel_flag = 0, out_channel_flag = 0, encode_flag = 0, decode_flag = 0;
 
 int in_index;
 float *inputptr;
@@ -89,7 +82,7 @@ int main() {
 	while(1) {
 		if(encode_flag) {
 			encode_flag = 2;
-			levinson(encodeptr, len, a, NUMCOEF);
+			levinson(encodeptr, BLOCKSIZE, a, NUMCOEF);
 			encode_flag = 3;
 			ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
 			encode_flag = 0;
@@ -106,7 +99,7 @@ int main() {
 			// compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 8);
 			// synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, 8);
 
-			// cl = classify(encodeptr, len);
+			// cl = classify(encodeptr, BLOCKSIZE);
 			// synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
 
 			// synthesize_block_white(decodeptr, BLOCKSIZE, a, NUMCOEF);
@@ -119,7 +112,7 @@ int main() {
 	/* However, if you _do_ exit the loop (say, using a break
 	 * statement) close the D/A converter properly */
 	DSK6713_AIC23_closeCodec(hCodec);
-	exit();
+	exit(0);
 }
 
 /**

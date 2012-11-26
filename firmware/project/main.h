@@ -16,6 +16,8 @@
 #include "classify.h"
 #include "levinsondurbin.h"
 
+#include "parameters.h"
+
 #endif
 
 void process_block(short* in, short* out, int len);
