@@ -95,7 +95,7 @@ Int16 process_sample(Int16 x) {
 		result += remezFIRBP64[i]*(float)in_buf[(in_buf_index+i)%FIRLEN];
 	}
 
-	return (Int16)result;
+	return x; //(Int16)result;
 }
 
 

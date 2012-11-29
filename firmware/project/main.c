@@ -58,6 +58,9 @@ float ebuf[NUMCOEF]; //lookback buffer
 
 short e_fixed_point[BLOCKSIZE];
 
+int slow = 0; //counter of how many times we didn't fnish processing fast enough
+int fast = 0; //counter of how many times we finished outputing faster than the next synthesis is ready
+
 /**
  * main method
  * contains main run loop
@@ -79,31 +82,31 @@ int main() {
 	in_channel_flag = 1;
 	out_channel_flag = 1; //Set L/R initial
 
-	while(1) {
+ 	while(1) {
 		if(encode_flag) {
 			encode_flag = 2;
 			levinson(encodeptr, BLOCKSIZE, a, NUMCOEF);
 			encode_flag = 3;
-			ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
+			//ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
 			encode_flag = 0;
 			//encodeptr only cares that this point is reached before the next buffer swap
 
 			//Should we ping pong the a/e array aswell?
 			decode_flag = 1;
-			synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
-			decode_flag = 0;
+			//synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
+			
 			//There is some serious timing issues with the decode buffre we need a diagram ....
 
 
-			// ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
-			// compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 8);
-			// synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, 8);
+			//compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 4);
+			//synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, 4);
 
-			// cl = classify(encodeptr, BLOCKSIZE);
-			// synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
+			cl = classify(encodeptr, BLOCKSIZE);
+			synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
 
-			// synthesize_block_white(decodeptr, BLOCKSIZE, a, NUMCOEF);
+			//synthesize_block_white(decodeptr, BLOCKSIZE, a, NUMCOEF);
 			// synthesize_block_tonal(decodeptr, BLOCKSIZE, a, NUMCOEF, 70);
+			decode_flag = 0;
 		}
 	};
 	
@@ -139,9 +142,9 @@ int main() {
  	inputptr = DATA_IN_1;
  	encodeptr = DATA_IN_2;
 
- 	out_index = BLOCKSIZE; //TEMPORARY TO BE CHANGED FOR REALTIME
- 	decodeptr = DATA_IN_1;
- 	outputptr = DATA_IN_2;
+ 	out_index = 0; //BLOCKSIZE; //TEMPORARY TO BE CHANGED FOR REALTIME
+ 	decodeptr = DATA_OUT_1; //DATA_IN_1;
+ 	outputptr = DATA_OUT_2; //DATA_IN_2;
 
  	srand(time(NULL));
  }
@@ -160,6 +163,7 @@ int main() {
 
  		if(encode_flag > 0) {
  			//bad we didn't process before the next full buf
+			slow++;
  		}
  		encode_flag = 1;
  	}
@@ -172,8 +176,9 @@ int main() {
  	out_index++;
 
  	if(out_index == BLOCKSIZE) { //MOVE DOWN FOR REALTIME
- 		if(decode_flag > 1) {
- 			//Inside a synthesis block, do not swap 
+ 		if(decode_flag > 0) { //1) {
+ 			//Inside a synthesis block, do not swap
+ 			fast++; 
  			out_index--;
  		} else {
 	 		out_index = 0;
