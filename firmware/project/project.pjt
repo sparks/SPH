@@ -1,7 +1,7 @@
 ; Code Composer Project File, Version 2.0 (do not modify or remove this line)
 
 [Project Settings]
-ProjectDir="H:\SPH\firmware\project\"
+ProjectDir="C:\SPH\firmware\project\"
 ProjectType=Executable
 CPUFamily=TMS320C67XX
 Tool="Compiler"
@@ -27,7 +27,7 @@ Source="Configuration1cfg_c.c"
 Options=-g -k -pm -o3 -fr"$(Proj_dir)\Debug" -i"H:\SPH\firmware\lib\dsk6713\include" -d"_DEBUG" -d"CHIP_6713" -mw -mv6700
 
 ["Compiler" Settings: "Release"]
-Options=-k -pm -os -o3 -fr"$(Proj_dir)\Release" -i"H:\SPH\firmware\lib\dsk6713\include" -d"CHIP_6713" -mw -mv6700
+Options=-pm -o3 -fr"$(Proj_dir)\Release" -i"H:\SPH\firmware\lib\dsk6713\include" -d"CHIP_6713" -mv6700
 
 ["Linker" Settings: "Debug"]
 Options=-c -m".\Debug\project.map" -o".\Debug\project.out" -w -x -i"H:\SPH\firmware\lib\dsk6713\lib" -l"dsk6713bsl.lib"
