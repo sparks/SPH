@@ -133,11 +133,11 @@ void process_block(short* in, short* out, int len) {
 	//When input block has been filled and encode flag is raised by interrupt
 	levinson(encodeptr, len, a, NUMCOEF);
 	cl = classify(encodeptr, len);
-	ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
+	// ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
 	// synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
-	compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 8);
-	synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, 8);
-	// synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
+	// compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 8);
+	// synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, 8);
+	synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
 	// synthesize_block_white(decodeptr, BLOCKSIZE, a, NUMCOEF);
 	// synthesize_block_tonal(decodeptr, BLOCKSIZE, a, NUMCOEF, 70);
 
