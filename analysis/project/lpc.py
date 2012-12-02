@@ -140,7 +140,7 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showp
 			classification = classify(signal[i*blocksize:(i+1)*blocksize])
 			classification[1].sort()
 
-			if classification[0] and False:
+			if classification[0]:
 				for i in range(len(e)):
 					for p in classification[1]:
 						if i%p == 0:
@@ -148,7 +148,7 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showp
 			else:
 				e = randn(len(e))
 
-			e = e*0.1
+			e = e*classification[2]
 
 		e_complete = append(e_complete, e)
 
@@ -178,14 +178,57 @@ blocksize = 180
 numcoef = 10
 t = array([i for i in range(blocksize*3)])
 # signal = sin(2*pi/35*t+20)+0.1*randn(len(t))
-signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3
-signal = append(signal, 0.1*randn(len(t)))
+signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3+0.1*randn(len(t))
+signal = append(signal, 0.2*randn(len(t)))
 t = append(t, array([i for i in range(blocksize*3)]))
 
 # t = array([i for i in range(1800)])
 # signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
 
 testblockLPC(signal, blocksize, numcoef, ideal=False)
+
+# r1 = testblockLPC(signal, blocksize, 1, ideal=False, showplot=False)
+# r3 = testblockLPC(signal, blocksize, 3, ideal=False, showplot=False)
+# r6 = testblockLPC(signal, blocksize, 6, ideal=False, showplot=False)
+# r10 = testblockLPC(signal, blocksize, 10, ideal=False, showplot=False)
+# r20 = testblockLPC(signal, blocksize, 20, ideal=False, showplot=False)
+# r30 = testblockLPC(signal, blocksize, 30, ideal=False, showplot=False)
+# r40 = testblockLPC(signal, blocksize, 40, ideal=False, showplot=False)
+
+# subplot(5, 1, 1)
+# plot(r1, label="1 coefficient")
+# legend()
+# subplot(5, 1, 2)
+# plot(r3, label="3 coefficients")
+# legend()
+# subplot(5, 1, 3)
+# plot(r6, label="6 coefficients")
+# legend()
+# subplot(5, 1, 4)
+# plot(r10, label="10 coefficients")
+# legend()
+# subplot(5, 1, 5)
+# plot(signal, label="Input Signal")
+# legend()
+# show()
+
+
+# subplot(5, 1, 1)
+# plot(r10, label="10 coefficients")
+# legend()
+# subplot(5, 1, 2)
+# plot(r20, label="20 coefficients")
+# legend()
+# subplot(5, 1, 3)
+# plot(r30, label="30 coefficients")
+# legend()
+# subplot(5, 1, 4)
+# plot(r40, label="40 coefficients")
+# legend()
+# subplot(5, 1, 5)
+# plot(signal, label="Input Signal")
+# legend()
+# show()
 
 # blocksize = 180
 # offset = 465000
