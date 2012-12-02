@@ -179,7 +179,7 @@ numcoef = 10
 t = array([i for i in range(blocksize*3)])
 # signal = sin(2*pi/35*t+20)+0.1*randn(len(t))
 signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3+0.1*randn(len(t))
-signal = append(signal, 0.2*randn(len(t)))
+signal = append(signal, 0.1*randn(len(t)))
 t = append(t, array([i for i in range(blocksize*3)]))
 
 # t = array([i for i in range(1800)])
