@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "classify.h"
 #include "levinsondurbin.h"
@@ -26,7 +27,8 @@ void ideal_error(float *error, float *x, int len, float *coef, int numcoef);
 void compress_fixed_point(short *comp, float *x, int len, int bit_depth);
 
 void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *error);
-void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth);
+void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth, float scale);
+float get_rms_scale_fixed_point_error(float *error, short *error_fixp, int len, int bit_depth);
 
 void synthesize_block_classify(float *x, int len, float *coef, int numcoef, classification cl);
 void synthesize_block_white(float *x, int len, float *coef, int numcoef);

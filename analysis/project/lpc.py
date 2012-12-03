@@ -118,7 +118,7 @@ def rmsgain(x):
 	gain = gain/len(x)
 	return gain
 
-def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showplot=True):
+def testblockLPC(signal, blocksize, numcoef, ideal=False, compress=False, lookback = True, showplot=True):
 	#Set up receiver
 	recv = Receiver(lookback = lookback)
 	e_complete = zeros(0)
@@ -133,9 +133,14 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showp
 
 		if ideal == True:
 			if i == 0 or recv.lookback == False:
-				e = idealError(signal[i*blocksize:(i+1)*blocksize], a, zeros(len(a)))		
+				e = idealError(signal[i*blocksize:(i+1)*blocksize], a, zeros(len(a)))	
 			else:
 				e = idealError(signal[i*blocksize:(i+1)*blocksize], a, signal[i*blocksize-len(a):i*blocksize])
+
+			if compress == True:
+				temp_e = compressError(e, 1)
+				temp_e = shiftCompressedError(temp_e, 1)
+				e = scaleRMS(e, temp_e)
 		else:
 			classification = classify(signal[i*blocksize:(i+1)*blocksize])
 			classification[1].sort()
@@ -174,18 +179,64 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, lookback = True, showp
 
 	return recv.output
 
-blocksize = 180
-numcoef = 10
-t = array([i for i in range(blocksize*3)])
-# signal = sin(2*pi/35*t+20)+0.1*randn(len(t))
-signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3+0.1*randn(len(t))
-signal = append(signal, 0.1*randn(len(t)))
-t = append(t, array([i for i in range(blocksize*3)]))
+def compressError(idealError, bitdepth=8):
+	if bitdepth > 16 or bitdepth < 1:
+		print "compression bitdepth out of range"
+		return idealError
 
-# t = array([i for i in range(1800)])
-# signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
+	compressedError = []
+	for e in idealError:
+		compressedError.append( (int(e*32768) >> (16 - bitdepth)) & 0xff)
 
-testblockLPC(signal, blocksize, numcoef, ideal=False)
+	return compressedError
+
+def shiftCompressedError(compressedError, bitdepth=8):
+	if bitdepth > 16 or bitdepth < 1:
+		print "compression bitdepth out of range"
+		return compressedError
+
+	shiftedError = []
+	for e in compressedError:
+		shiftedError.append( float( (e << (16 - bitdepth))/32768.0)  )
+
+	return shiftedError
+
+def scaleRMS(rmsSource, rmsInput):
+	rmsS = 0
+	rmsI = 0
+	output = []
+
+	for i in rmsSource:
+		rmsS += i**2
+	rmsS = rmsS/len(rmsSource)
+	rmsS = math.sqrt(rmsS)
+
+	for i in rmsInput:
+		rmsI += i**2
+	rmsI = rmsI/len(rmsInput)
+	rmsI = math.sqrt(rmsI)
+
+	scale = rmsS/rmsI
+
+	for i in rmsInput:
+		output.append(i*scale)
+
+	return output
+
+
+
+# blocksize = 180
+# numcoef = 10
+# t = array([i for i in range(blocksize*3)])
+# # signal = sin(2*pi/35*t+20)+0.1*randn(len(t))
+# signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3+0.1*randn(len(t))
+# signal = append(signal, 0.1*randn(len(t)))
+# t = append(t, array([i for i in range(blocksize*3)]))
+
+# # t = array([i for i in range(1800)])
+# # signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
+
+# testblockLPC(signal, blocksize, numcoef, ideal=True, compress=True)
 
 # r1 = testblockLPC(signal, blocksize, 1, ideal=False, showplot=False)
 # r3 = testblockLPC(signal, blocksize, 3, ideal=False, showplot=False)
@@ -230,19 +281,19 @@ testblockLPC(signal, blocksize, numcoef, ideal=False)
 # legend()
 # show()
 
-# blocksize = 180
-# offset = 465000
-# chunk = 8000*4/blocksize*blocksize
-# numcoef = 10
-# audio = wave.read("signal-echo.wav")
-# # signal = audio[1][:,0]/32767.0
-# signal = audio[1][offset:offset+chunk,0]/32767.0
+blocksize = 180
+offset = 465000
+chunk = 8000*4/blocksize*blocksize
+numcoef = 10
+audio = wave.read("signal-echo.wav")
+# signal = audio[1][:,0]/32767.0
+signal = audio[1][offset:offset+chunk,0]/32767.0
 
-# rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=True, lookback=True)
+rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=True, compress=True ,showplot=False, lookback=True)
 
-# audio_out = (8000, array([[0, 0] for i in rebuilt], dtype=int16))
-# audio_out[1][:,0] = array([int(r*32767.0) for r in rebuilt])
-# audio_out[1][:,1] = array([int(r*32767.0) for r in rebuilt])
+audio_out = (8000, array([[0, 0] for i in rebuilt], dtype=int16))
+audio_out[1][:,0] = array([int(r*32767.0) for r in rebuilt])
+audio_out[1][:,1] = array([int(r*32767.0) for r in rebuilt])
 
 # wave.write("rebuilt.wav", audio_out[0]*2, audio_out[1]*2)
 
