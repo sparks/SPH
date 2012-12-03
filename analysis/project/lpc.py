@@ -118,7 +118,7 @@ def rmsgain(x):
 	gain = gain/len(x)
 	return gain
 
-def testblockLPC(signal, blocksize, numcoef, ideal=False, compress=False, lookback = True, showplot=True):
+def testblockLPC(signal, blocksize, numcoef, ideal=False, compress=False, lookback = True, showplot=True, bitdepth=1):
 	#Set up receiver
 	recv = Receiver(lookback = lookback)
 	e_complete = zeros(0)
@@ -138,8 +138,8 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, compress=False, lookba
 				e = idealError(signal[i*blocksize:(i+1)*blocksize], a, signal[i*blocksize-len(a):i*blocksize])
 
 			if compress == True:
-				temp_e = compressError(e, 1)
-				temp_e = shiftCompressedError(temp_e, 1)
+				temp_e = compressError(e, bitdepth)
+				temp_e = shiftCompressedError(temp_e, bitdepth)
 				e = scaleRMS(e, temp_e)
 		else:
 			classification = classify(signal[i*blocksize:(i+1)*blocksize])
@@ -281,47 +281,102 @@ def scaleRMS(rmsSource, rmsInput):
 # legend()
 # show()
 
-blocksize = 180
-offset = 465000
-chunk = 8000*4/blocksize*blocksize
-numcoef = 10
-audio = wave.read("signal-echo.wav")
-# signal = audio[1][:,0]/32767.0
-signal = audio[1][offset:offset+chunk,0]/32767.0
+# blocksize = 180
+# offset = 465000
+# chunk = 8000*4/blocksize*blocksize
+# numcoef = 10
+# audio = wave.read("signal-echo.wav")
+# # signal = audio[1][:,0]/32767.0
+# signal = audio[1][offset:offset+chunk,0]/32767.0
 
-rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=True, compress=True ,showplot=False, lookback=True)
+# rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=True, compress=True ,showplot=False, lookback=True)
 
-audio_out = (8000, array([[0, 0] for i in rebuilt], dtype=int16))
-audio_out[1][:,0] = array([int(r*32767.0) for r in rebuilt])
-audio_out[1][:,1] = array([int(r*32767.0) for r in rebuilt])
+# audio_out = (8000, array([[0, 0] for i in rebuilt], dtype=int16))
+# audio_out[1][:,0] = array([int(r*32767.0) for r in rebuilt])
+# audio_out[1][:,1] = array([int(r*32767.0) for r in rebuilt])
 
 # wave.write("rebuilt.wav", audio_out[0]*2, audio_out[1]*2)
 
-thd = []
-for numcoef in range(1, 31):
-	blocksize = 180*4
+def thd(fft, fund_bin):
+	fund_bin = round(fund_bin)
+
+	mag_spec = abs(fft)
+	spec_pwr = pow(mag_spec, 2)*2/(len(mag_spec)*(len(mag_spec)-1))
+
+	harm_pwr = 0
+	for i in range(len(mag_spec)/2):
+		if i != 0 and i != fund_bin and i%fund_bin == 0:
+			harm_pwr += spec_pwr[i]
+
+	return harm_pwr/spec_pwr[fund_bin]
+
+def snr(fft, fund_bin):
+	fund_bin = round(fund_bin)
+
+	mag_spec = abs(fft)
+	spec_pwr = pow(mag_spec, 2)*2/(len(mag_spec)*(len(mag_spec)-1))
+
+	noise_pwr = 0
+	for i in range(len(mag_spec)/2):
+		if i%fund_bin != 0:
+			noise_pwr += spec_pwr[i]
+
+	return sqrt(spec_pwr[fund_bin])/sqrt(noise_pwr)
+
+# thds = []
+
+# for numcoef in range(1, 31):
+# 	blocksize = 180
+
+# 	t = array([i for i in range(blocksize*3)])
+# 	per = 30
+# 	signal = sin(2*pi/per*t+20)
+
+# 	res = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=False)
+# 	res_spec = fft(res)
+# 	bin = round(1.0/per*len(res_spec))
+
+# 	spec_thd = thd(res_spec, bin)
+
+# 	print "Num", numcoef, "THD", spec_thd
+# 	thds.append(spec_thd)
+
+
+# plot([i for i in range(1, 31)], thds)
+# title("THD as a function of filter length")
+# xlabel("Number of filter coefficients")
+# ylabel("THD")
+# show()
+
+thds = []
+
+for bd in range(1, 17):
+	blocksize = 180
+	numcoef = 10
 	t = array([i for i in range(blocksize*3)])
 	per = 30
 	signal = sin(2*pi/per*t+20)
 
-	res = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=False)
-	resspec = abs(fft(res))
-	respow = pow(resspec, 2)*2/(len(resspec)*(len(resspec)-1))
+	res = testblockLPC(signal, blocksize, numcoef, ideal=True, compress=True, showplot=False, bitdepth=bd)
+	res_spec = fft(res)
+	bin = round(1.0/per*len(res_spec))
 
-	bin = round(1.0/per*len(resspec))
-	dis = 0
-	for i in range(len(resspec)/2):
-		if i != 0 and i != bin and i%bin == 0:
-			dis += respow[i]
+	spec_thd = thd(res_spec, bin)
 
-	print "Num", numcoef, "THD", dis/respow[bin]
-	thd.append(dis/respow[bin])
+	print "Num", numcoef, "THD", spec_thd
+	thds.append(spec_thd)
 
-	# plot(resspec)
+	# subplot(2, 1, 1)
+	# plot(abs(fft(res)))
+	# subplot(2, 1, 2)
+	# plot(res)
+
 	# show()
 
-plot([i for i in range(1, 31)], thd)
-title("THD as a function of filter length")
-xlabel("Number of filter coefficients")
+
+plot([i for i in range(1, 17)], thds)
+title("THD as a Function of Excitement Bit Depth")
+xlabel("Excitement Bit Depth")
 ylabel("THD")
+
 show()
