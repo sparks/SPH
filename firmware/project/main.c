@@ -58,14 +58,16 @@ float ebuf[NUMCOEF]; //lookback buffer
 
 short e_fixed_point[BLOCKSIZE];
 
-int slow = 0; //counter of how many times we didn't fnish processing fast enough
-int fast = 0; //counter of how many times we finished outputing faster than the next synthesis is ready
+volatile int slow = 0; //counter of how many times we didn't fnish processing fast enough
+volatile int fast = 0; //counter of how many times we finished outputing faster than the next synthesis is ready
+volatile int fast_max = 0;
 
 /**
  * main method
  * contains main run loop
  */
 int main() {
+	float scale = 1.0;
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
@@ -98,8 +100,9 @@ int main() {
 			//There is some serious timing issues with the decode buffre we need a diagram ....
 
 
-			//compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 4);
-			//synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, 4);
+			//compress_fixed_point(e_fixed_point, e, BLOCKSIZE, BITDEPTH);
+			//scale = get_rms_scale_fixed_point_error(e, e_fixed_point, BLOCKSIZE, BITDEPTH);
+			//synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, BITDEPTH, scale);
 
 			cl = classify(encodeptr, BLOCKSIZE);
 			synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
@@ -150,11 +153,11 @@ int main() {
  }
 
  //Stand in for the receive interrupt
- void process_sample(short in) {
+void process_sample(short in) {
  	inputptr[in_index] = toFloat(in);
  	in_index++;
 
- 	if(in_index == BLOCKSIZE) {
+ 	if(in_index > BLOCKSIZE) {
  		in_index = 0;
 
  		tmp = encodeptr;
@@ -169,23 +172,27 @@ int main() {
  	}
  }
 
- short generate_sample(void) {
+short generate_sample(void) {
  	short output;
 
  	output = toShort(outputptr[out_index]);
  	out_index++;
 
- 	if(out_index == BLOCKSIZE) { //MOVE DOWN FOR REALTIME
+ 	if(out_index >= BLOCKSIZE) { //MOVE DOWN FOR REALTIME
  		if(decode_flag > 0) { //1) {
  			//Inside a synthesis block, do not swap
  			fast++; 
  			out_index--;
+
+			if(fast > fast_max)
+				fast_max = fast; 
  		} else {
 	 		out_index = 0;
 
 	 		tmp = decodeptr;
 	 		decodeptr = outputptr;
 	 		outputptr = tmp;
+			fast = 0;
 	 	}
  	}
 
@@ -218,6 +225,34 @@ int main() {
  	}
  }
 
+float get_rms_scale_fixed_point_error(float *error, short *error_fixp, int len, int bit_depth) {
+	float rms_original = 0;
+	float rms_fixp = 0;
+	float scale = 1;
+	int i = 0;
+
+	//not actually doing the square root because it takes too long
+	for(i = 0; i < len; i++) {
+		rms_original += fabs(error[i]);
+		rms_fixp += fabs( toFloat(error_fixp[i] << (16 - bit_depth)));
+	}
+	/*
+	for(i = 0; i < len; i++) {
+		rms_original += pow(error[i], 2);
+		rms_fixp += pow(toFloat(error_fixp[i] << (16 - bit_depth)), 2);
+	}
+
+	rms_original = sqrt(fabs(rms_original));
+	rms_fixp = sqrt(fabs(rms_fixp));
+	*/
+
+	if(rms_original > 0.0)
+		scale = rms_fixp/rms_original;
+	
+
+	return scale;
+}
+
  void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *error) {
  	int i, j;
  	float approx;
@@ -237,7 +272,7 @@ int main() {
  	//NB there's a synthesis error with the "last" block, but this will never happen in realtime since there is never a "last" block
  }
 
- void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth) {
+ void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth, float scale) {
  	int i, j;
  	float approx;
 
@@ -248,7 +283,7 @@ int main() {
  			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
  		}
 
- 		x[i] = toFloat((error[i] << (16-bit_depth))) + approx;
+ 		x[i] = toFloat((error[i] << (16-bit_depth)))/scale + approx;
  		
  		synthbuf[synthbuf_index] = x[i];
  		synthbuf_index = (synthbuf_index+1)%numcoef;

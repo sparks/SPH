@@ -5,8 +5,9 @@
 #define BLOCKSIZE 180
 
 //program vars
-#define NUMCOEF 10
+#define NUMCOEF 10	
 #define GAINCOMP 2.0
+#define BITDEPTH 1
 
 #endif
 
