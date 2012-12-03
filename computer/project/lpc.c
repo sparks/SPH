@@ -14,6 +14,9 @@ short DATA_OUT[BLOCKSIZE];
 #define NUMCOEF 10
 #define GAINCOMP 2.0
 
+//compresion
+#define BITDEPTH 1
+
 int in_index;
 float *inputptr;
 float *encodeptr;
@@ -125,6 +128,7 @@ void reset(void) {
 
 void process_block(short* in, short* out, int len) {
 	int i;
+	float scale = 1.0;
 
 	for(i = 0;i < len;i++) {
 		process_sample(in[i]);
@@ -133,11 +137,12 @@ void process_block(short* in, short* out, int len) {
 	//When input block has been filled and encode flag is raised by interrupt
 	levinson(encodeptr, len, a, NUMCOEF);
 	cl = classify(encodeptr, len);
-	// ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
+	ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
 	// synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
-	// compress_fixed_point(e_fixed_point, e, BLOCKSIZE, 8);
-	// synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, 8);
-	synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
+	compress_fixed_point(e_fixed_point, e, BLOCKSIZE, BITDEPTH);
+	scale = get_rms_scale_fixed_point_error(e, e_fixed_point, BLOCKSIZE, BITDEPTH);
+	synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, BITDEPTH, scale);
+	// synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
 	// synthesize_block_white(decodeptr, BLOCKSIZE, a, NUMCOEF);
 	// synthesize_block_tonal(decodeptr, BLOCKSIZE, a, NUMCOEF, 70);
 
@@ -227,7 +232,7 @@ void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *
 	//NB there's a synthesis error with the "last" block, but this will never happen in realtime since there is never a "last" block
 }
 
-void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth) {
+void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth, float scale) {
 	int i, j;
 	float approx;
 
@@ -238,11 +243,33 @@ void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, s
 			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
 		}
 
-		x[i] = toFloat((error[i] << (16-bit_depth))) + approx;
+		x[i] = toFloat((error[i] << (16-bit_depth)))/scale + approx;
 		
 		synthbuf[synthbuf_index] = x[i];
 		synthbuf_index = (synthbuf_index+1)%numcoef;
 	}
+}
+
+float get_rms_scale_fixed_point_error(float *error, short *error_fixp, int len, int bit_depth) {
+	double rms_original = 0;
+	double rms_fixp = 0;
+	float scale = 1;
+	int i = 0;
+
+	for(i = 0; i < len; i++) {
+		rms_original += pow(error[i], 2);
+		rms_fixp += pow( toFloat((error_fixp[i] << (16 - bit_depth))), 2);
+	}
+
+	rms_original = rms_original/(double)len;
+	rms_original = sqrt(fabs(rms_original));
+	rms_fixp = rms_fixp/(double)len;
+	rms_fixp = sqrt(fabs(rms_fixp));
+
+	if(rms_original > 0.0)
+		scale = (float)(rms_fixp/rms_original);
+
+	return scale;
 }
 
 

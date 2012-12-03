@@ -91,7 +91,7 @@ int buffer_index = 0;
 // Maximum length of digit sequence
 // if sequence excedes this leght, digits will be lost
 // note: required length was 20
-#define TONE_BUF_LEN 30
+#define TONE_BUF_LEN 20
 int detected_tones[TONE_BUF_LEN] = {
 	-1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1,
