@@ -257,17 +257,11 @@ float get_rms_scale_fixed_point_error(float *error, short *error_fixp, int len, 
 	int i = 0;
 
 	for(i = 0; i < len; i++) {
-		rms_original += pow(error[i], 2);
-		rms_fixp += pow( toFloat((error_fixp[i] << (16 - bit_depth))), 2);
+		rms_original += fabs(error[i]);
+		rms_fixp += fabs(toFloat((error_fixp[i] << (16 - bit_depth))));
 	}
 
-	rms_original = rms_original/(double)len;
-	rms_original = sqrt(fabs(rms_original));
-	rms_fixp = rms_fixp/(double)len;
-	rms_fixp = sqrt(fabs(rms_fixp));
-
-	if(rms_original > 0.0)
-		scale = (float)(rms_fixp/rms_original);
+	if(rms_original > 0.0) scale = (float)(rms_fixp/rms_original);
 
 	return scale;
 }
