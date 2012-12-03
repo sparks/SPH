@@ -245,3 +245,32 @@ testblockLPC(signal, blocksize, numcoef, ideal=False)
 # audio_out[1][:,1] = array([int(r*32767.0) for r in rebuilt])
 
 # wave.write("rebuilt.wav", audio_out[0]*2, audio_out[1]*2)
+
+thd = []
+for numcoef in range(1, 31):
+	blocksize = 180*4
+	t = array([i for i in range(blocksize*3)])
+	per = 30
+	signal = sin(2*pi/per*t+20)
+
+	res = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=False)
+	resspec = abs(fft(res))
+	respow = pow(resspec, 2)*2/(len(resspec)*(len(resspec)-1))
+
+	bin = round(1.0/per*len(resspec))
+	dis = 0
+	for i in range(len(resspec)/2):
+		if i != 0 and i != bin and i%bin == 0:
+			dis += respow[i]
+
+	print "Num", numcoef, "THD", dis/respow[bin]
+	thd.append(dis/respow[bin])
+
+	# plot(resspec)
+	# show()
+
+plot([i for i in range(1, 31)], thd)
+title("THD as a function of filter length")
+xlabel("Number of filter coefficients")
+ylabel("THD")
+show()
