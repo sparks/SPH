@@ -83,8 +83,9 @@ def classify(x, showplot=False):
 		print max(amdf)-min(amdf)
 
 		subplot(2, 1, 1)
-		title("AMDF")
-		plot([amdfrange[0]+i for i in range(len(amdf))], amdf)
+		title("Average Magnitude Difference Function", size=20)
+		xlabel("Period", size=17)
+		plot([amdfrange[0]+i for i in range(len(amdf))], amdf, lw=2)
 		if classification[0]:
 			for t in classification[1]:
 				plot(t, amdf[int(t)-amdfrange[0]], 'o', color="pink", markersize=20)
@@ -92,11 +93,13 @@ def classify(x, showplot=False):
 				plot([f+amdfrange[0]], [amdf[f]], 'yo')
 			plot(amdf.tolist().index(highest)+amdfrange[0], highest, 'go')
 			plot(amdf.tolist().index(lowest)+amdfrange[0], lowest, 'ro')
-			plot([amdfrange[0]+i for i in range(len(amdf))], [amdfgain for i in range(len(amdf))])
+			plot([amdfrange[0]+i for i in range(len(amdf))], [amdfgain for i in range(len(amdf))], lw=2)
 
 		subplot(2, 1, 2)
-		title("Signal")
-		plot(x)
+		title("Signal", size=20)
+		plot(x, lw=2)
+		xlabel("Time", size=17)
+
 
 		# subplot(2, 2, 3)
 		# title("AC")
@@ -106,7 +109,6 @@ def classify(x, showplot=False):
 		# title("AC AMDF")
 		# plot([i+amdfrange[0] for i in range(len(acamdf))], acamdf)
 	
-
 		show()
 
 	return classification
@@ -145,15 +147,15 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, compress=False, lookba
 			classification = classify(signal[i*blocksize:(i+1)*blocksize])
 			classification[1].sort()
 
-			if classification[0]:
+			if classification[0] or True:
 				for i in range(len(e)):
-					for p in classification[1]:
-						if i%p == 0:
-							e[i] = 1
+					# for p in classification[1]:
+					if i%60 == 0:
+						e[i] = 1
 			else:
 				e = randn(len(e))
 
-			e = e*classification[2]
+			# e = e*classification[2]
 
 		e_complete = append(e_complete, e)
 
@@ -166,15 +168,17 @@ def testblockLPC(signal, blocksize, numcoef, ideal=False, compress=False, lookba
 	if showplot == True:
 		#Plot results
 		subplot(3, 1, 1)
-		plot(signal, label="original")
+		title("Signal Reconstruction with Impulse Train", size=20)
+
+		plot(signal, label="Input Signal", lw=2)
 		legend()
 		subplot(3, 1, 2)
-		plot(e_complete, label="error")
+		plot(e_complete, label="Excitation Signal", lw=2)
 		legend()
 		subplot(3, 1, 3)
-		plot(recv.output, label="output")
+		plot(recv.output, label="Decoded Signal", lw=2)
 		# ylim([-5, 5])
-		legend()
+		legend()		
 		show()
 
 	return recv.output
@@ -223,80 +227,6 @@ def scaleRMS(rmsSource, rmsInput):
 
 	return output
 
-
-
-# blocksize = 180
-# numcoef = 10
-# t = array([i for i in range(blocksize*3)])
-# # signal = sin(2*pi/35*t+20)+0.1*randn(len(t))
-# signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3+0.1*randn(len(t))
-# signal = append(signal, 0.1*randn(len(t)))
-# t = append(t, array([i for i in range(blocksize*3)]))
-
-# # t = array([i for i in range(1800)])
-# # signal = sin(t * 0.01) + 0.75 * sin(t * 0.03) + 0.5 * sin(t * 0.05) + 0.25 * sin(t * 0.11);
-
-# testblockLPC(signal, blocksize, numcoef, ideal=True, compress=True)
-
-# r1 = testblockLPC(signal, blocksize, 1, ideal=False, showplot=False)
-# r3 = testblockLPC(signal, blocksize, 3, ideal=False, showplot=False)
-# r6 = testblockLPC(signal, blocksize, 6, ideal=False, showplot=False)
-# r10 = testblockLPC(signal, blocksize, 10, ideal=False, showplot=False)
-# r20 = testblockLPC(signal, blocksize, 20, ideal=False, showplot=False)
-# r30 = testblockLPC(signal, blocksize, 30, ideal=False, showplot=False)
-# r40 = testblockLPC(signal, blocksize, 40, ideal=False, showplot=False)
-
-# subplot(5, 1, 1)
-# plot(r1, label="1 coefficient")
-# legend()
-# subplot(5, 1, 2)
-# plot(r3, label="3 coefficients")
-# legend()
-# subplot(5, 1, 3)
-# plot(r6, label="6 coefficients")
-# legend()
-# subplot(5, 1, 4)
-# plot(r10, label="10 coefficients")
-# legend()
-# subplot(5, 1, 5)
-# plot(signal, label="Input Signal")
-# legend()
-# show()
-
-
-# subplot(5, 1, 1)
-# plot(r10, label="10 coefficients")
-# legend()
-# subplot(5, 1, 2)
-# plot(r20, label="20 coefficients")
-# legend()
-# subplot(5, 1, 3)
-# plot(r30, label="30 coefficients")
-# legend()
-# subplot(5, 1, 4)
-# plot(r40, label="40 coefficients")
-# legend()
-# subplot(5, 1, 5)
-# plot(signal, label="Input Signal")
-# legend()
-# show()
-
-# blocksize = 180
-# offset = 465000
-# chunk = 8000*4/blocksize*blocksize
-# numcoef = 10
-# audio = wave.read("signal-echo.wav")
-# # signal = audio[1][:,0]/32767.0
-# signal = audio[1][offset:offset+chunk,0]/32767.0
-
-# rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=True, compress=True ,showplot=False, lookback=True)
-
-# audio_out = (8000, array([[0, 0] for i in rebuilt], dtype=int16))
-# audio_out[1][:,0] = array([int(r*32767.0) for r in rebuilt])
-# audio_out[1][:,1] = array([int(r*32767.0) for r in rebuilt])
-
-# wave.write("rebuilt.wav", audio_out[0]*2, audio_out[1]*2)
-
 def thd(fft, fund_bin):
 	fund_bin = round(fund_bin)
 
@@ -329,8 +259,10 @@ def period2bin(period, len):
 def coeffnumTHD():
 	thds = []
 
-	for numcoef in range(1, 31):
-		blocksize = 180
+	coeffranges = range(1, 20)
+
+	for numcoef in coeffranges:
+		blocksize = 180*3
 
 		t = array([i for i in range(blocksize*3)])
 		per = 30
@@ -345,17 +277,28 @@ def coeffnumTHD():
 		print "Num", numcoef, "THD", spec_thd
 		thds.append(spec_thd)
 
+	plot([i for i in coeffranges], thds, lw=2)
+	title("THD as a Function of Filter Length, Block Size=540", size=20)
+	xlabel("Filter Length", size=17)
+	ylabel("THD", size=17)
+	ax = gca()
 
-	plot([i for i in range(1, 31)], thds)
-	title("THD as a function of filter length")
-	xlabel("Number of filter coefficients")
-	ylabel("THD")
+	for tick in ax.xaxis.get_major_ticks():
+		tick.label.set_fontsize(16) 
+
+	for tick in ax.yaxis.get_major_ticks():
+		tick.label.set_fontsize(16) 
+	
+	ylim([0, 0.3])
+	grid()
 	show()
 
 def bitdepthTHD():
 	thds = []
 
-	for bd in range(1, 14):
+	bdranges = range(1, 10)
+
+	for bd in bdranges:
 		blocksize = 180
 		numcoef = 10
 		t = array([i for i in range(blocksize*3)])
@@ -378,11 +321,91 @@ def bitdepthTHD():
 
 		# show()
 
+	plot(bdranges, thds, lw=2)
+	title("THD as a Function of Excitement Bit Depth", size=20)
+	xlabel("Excitement Bit ", size=17)
+	ylabel("THD", size=17)
+	ax = gca()
 
-	plot([i for i in range(1, 14)], thds)
-	title("THD as a Function of Excitement Bit Depth")
-	xlabel("Excitement Bit Depth")
-	ylabel("THD")
+	for tick in ax.xaxis.get_major_ticks():
+		tick.label.set_fontsize(16) 
+
+	for tick in ax.yaxis.get_major_ticks():
+		tick.label.set_fontsize(16) 
+	
+	ylim([0, 0.005])
+	grid()
+	show()
 
 	show()
 
+coeffnumTHD()
+
+# blocksize = 180
+# numcoef = 10
+# t = array([i for i in range(blocksize*3)])
+# signal = sin(2*pi/35*t+20)/3+sin(2*pi/27*t-8)/3+sin(2*pi/45*t)/3
+# signal = append(signal, 0.1*randn(len(t)))
+# t = append(t, array([i for i in range(blocksize*3)]))
+
+# testblockLPC(signal, blocksize, numcoef, ideal=False, compress=False)
+
+# r1 = testblockLPC(signal, blocksize, 1, ideal=False, showplot=False)
+# r3 = testblockLPC(signal, blocksize, 3, ideal=False, showplot=False)
+# r6 = testblockLPC(signal, blocksize, 6, ideal=False, showplot=False)
+# r10 = testblockLPC(signal, blocksize, 10, ideal=False, showplot=False)
+# r20 = testblockLPC(signal, blocksize, 20, ideal=False, showplot=False)
+# r30 = testblockLPC(signal, blocksize, 30, ideal=False, showplot=False)
+# r40 = testblockLPC(signal, blocksize, 40, ideal=False, showplot=False)
+
+# subplot(5, 1, 1)
+# title("Signal Reconstruction with Variable Filter Length", size=20)
+# plot(signal, label="Input Signal", lw=2)
+# legend()
+# subplot(5, 1, 2)
+# plot(r1, label="1 Coefficient", lw=2)
+# legend()
+# subplot(5, 1, 3)
+# plot(r3, label="3 Coefficients", lw=2)
+# legend()
+# subplot(5, 1, 4)
+# plot(r6, label="6 Coefficients", lw=2)
+# legend()
+# subplot(5, 1, 5)
+# plot(r10, label="10 Coefficients", lw=2)
+# legend()
+# show()
+
+# subplot(5, 1, 1)
+# title("Signal Reconstruction with Variable Filter Length", size=20)
+# plot(signal, label="Input Signal", lw=2)
+# legend()
+# subplot(5, 1, 2)
+# plot(r10, label="10 Coefficients", lw=2)
+# legend()
+# subplot(5, 1, 3)
+# plot(r20, label="20 Coefficients", lw=2)
+# legend()
+# subplot(5, 1, 4)
+# plot(r30, label="30 Coefficients", lw=2)
+# legend()
+# subplot(5, 1, 5)
+# plot(r40, label="40 Coefficients", lw=2)
+# legend()
+# show()
+
+# blocksize = 180
+# offset = 465000
+# chunk = 8000*4/blocksize*blocksize
+# numcoef = 10
+# audio = wave.read("signal-echo.wav")
+# # signal = audio[1][:,0]/32767.0
+# signal = audio[1][offset:offset+chunk,0]/32767.0
+
+# rebuilt = testblockLPC(signal, blocksize, numcoef, ideal=False, compress=False ,showplot=False, lookback=True)
+
+# audio_out = (8000, array([[0, 0] for i in rebuilt], dtype=int16))
+# audio_out[1][:,0] = array([int(r*32767.0) for r in rebuilt])
+# audio_out[1][:,1] = array([int(r*32767.0) for r in rebuilt])
+
+# wave.write("rebuilt.wav", audio_out[0]*2, audio_out[1]*2)
