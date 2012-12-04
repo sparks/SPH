@@ -46,9 +46,9 @@ def AMDF(x, min, max):
 def classify(x, showplot=False):
 	amdfrange = (20, 160)
 
-	gain = rmsgain(x)
+	gain = avgmag(x)
 	amdf = AMDF(x, amdfrange[0], amdfrange[1])/gain
-	amdfgain = rmsgain(amdf)
+	amdfgain = avgmag(amdf)
 	found = []
 	
 	lowest = min(amdf)
@@ -111,7 +111,7 @@ def classify(x, showplot=False):
 
 	return classification
 
-def rmsgain(x):
+def avgmag(x):
 	gain = 0
 	for v in abs(x):
 		gain += v
@@ -323,60 +323,66 @@ def snr(fft, fund_bin):
 
 	return sqrt(spec_pwr[fund_bin])/sqrt(noise_pwr)
 
-# thds = []
+def period2bin(period, len):
+	return round(1.0/period*len)
 
-# for numcoef in range(1, 31):
-# 	blocksize = 180
+def coeffnumTHD():
+	thds = []
 
-# 	t = array([i for i in range(blocksize*3)])
-# 	per = 30
-# 	signal = sin(2*pi/per*t+20)
+	for numcoef in range(1, 31):
+		blocksize = 180
 
-# 	res = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=False)
-# 	res_spec = fft(res)
-# 	bin = round(1.0/per*len(res_spec))
+		t = array([i for i in range(blocksize*3)])
+		per = 30
+		signal = sin(2*pi/per*t+20)
 
-# 	spec_thd = thd(res_spec, bin)
+		res = testblockLPC(signal, blocksize, numcoef, ideal=False, showplot=False)
+		res_spec = fft(res)
+		bin = round(1.0/per*len(res_spec))
 
-# 	print "Num", numcoef, "THD", spec_thd
-# 	thds.append(spec_thd)
+		spec_thd = thd(res_spec, bin)
 
-
-# plot([i for i in range(1, 31)], thds)
-# title("THD as a function of filter length")
-# xlabel("Number of filter coefficients")
-# ylabel("THD")
-# show()
-
-thds = []
-
-for bd in range(1, 17):
-	blocksize = 180
-	numcoef = 10
-	t = array([i for i in range(blocksize*3)])
-	per = 30
-	signal = sin(2*pi/per*t+20)
-
-	res = testblockLPC(signal, blocksize, numcoef, ideal=True, compress=True, showplot=False, bitdepth=bd)
-	res_spec = fft(res)
-	bin = round(1.0/per*len(res_spec))
-
-	spec_thd = thd(res_spec, bin)
-
-	print "Num", numcoef, "THD", spec_thd
-	thds.append(spec_thd)
-
-	# subplot(2, 1, 1)
-	# plot(abs(fft(res)))
-	# subplot(2, 1, 2)
-	# plot(res)
-
-	# show()
+		print "Num", numcoef, "THD", spec_thd
+		thds.append(spec_thd)
 
 
-plot([i for i in range(1, 17)], thds)
-title("THD as a Function of Excitement Bit Depth")
-xlabel("Excitement Bit Depth")
-ylabel("THD")
+	plot([i for i in range(1, 31)], thds)
+	title("THD as a function of filter length")
+	xlabel("Number of filter coefficients")
+	ylabel("THD")
+	show()
 
-show()
+def bitdepthTHD():
+	thds = []
+
+	for bd in range(1, 14):
+		blocksize = 180
+		numcoef = 10
+		t = array([i for i in range(blocksize*3)])
+		per = 30
+		signal = sin(2*pi/per*t+20)
+
+		res = testblockLPC(signal, blocksize, numcoef, ideal=True, compress=True, showplot=False, bitdepth=bd)
+		res_spec = fft(res)
+		bin = round(1.0/per*len(res_spec))
+
+		spec_thd = thd(res_spec, bin)
+
+		print "Num", numcoef, "THD", spec_thd
+		thds.append(spec_thd)
+
+		# subplot(2, 1, 1)
+		# plot(abs(fft(res)))
+		# subplot(2, 1, 2)
+		# plot(res)
+
+		# show()
+
+
+	plot([i for i in range(1, 14)], thds)
+	title("THD as a Function of Excitement Bit Depth")
+	xlabel("Excitement Bit Depth")
+	ylabel("THD")
+
+	show()
+
