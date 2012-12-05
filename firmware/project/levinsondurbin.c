@@ -3,11 +3,16 @@
 float r[NUMCOEF];
 float coef_new[NUMCOEF];
 
+/**
+ * Levison-Durbin matrix inversion. This method will return the optimized LPC IIR filter coefficients.
+ * Modified indexing from zero.
+ *
+*/
 void levinson(float *x, int len, float *coef, int numcoef){
 	int i, j;
 	float k, e;
 
-	//autocorrelate
+	//build autocorrelation
 	for(i = 0; i < numcoef; i++){
 		r[i] = autocorrelate(x, len, i+1);
 	}
@@ -35,6 +40,10 @@ void levinson(float *x, int len, float *coef, int numcoef){
 	}
 }
 
+/**
+ * Simple autocorrelation function as normally defined for use with LPC/levinson-durbin
+ *
+ */
 float autocorrelate(float *x, int len, int k){
 	int i;
 	float result = 0;

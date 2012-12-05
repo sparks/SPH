@@ -10,15 +10,17 @@
 
 #endif
 
+//Enum for WHITE/TONAL classifying voiced vs voiceless sounds
 typedef enum ClassificationTypeEnum {
 	WHITE = 0,
 	TONAL = 1
 } classificationtype;
  
+//Struct for classification, holds the information of interest
 typedef struct ClassificationStruct {
-	classificationtype type;
-	float gain;
-    int period;
+	classificationtype type; //voiced, voicless determination
+	float gain; //Gain of block
+    int period; //Period (if voiced)
 } classification;
 
 float rmsgain(float* x, int len);
