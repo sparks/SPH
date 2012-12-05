@@ -20,54 +20,72 @@ DSK6713_AIC23_Config config = {
 
 DSK6713_AIC23_CodecHandle hCodec;
 
+/* Interrupt vars */
+
+//temporary variables used encoding decoding to and from the DAC/ADC
 Uint32 in_tmp = 0, out_tmp = 0;
 
-// input and output sample flags
+// encode and decode flags
 // used to communicate between the main run loop and the interrupts
-// to know when input/output samples are ready to be processes/output
+// to know when input/output data block are being processed and when they can safely be swapped
 // channel flag is used to switch between buffering left and right channels
 volatile Uint16 in_channel_flag = 0, out_channel_flag = 0, encode_flag = 0, decode_flag = 0;
 
-int in_index;
-float *inputptr;
-float *encodeptr;
+/* Debug counters */
 
-int out_index;
-float *decodeptr;
-float *outputptr;
+volatile int slow = 0; //counter of how many times we didn't fnish processing fast enough (encode_flag)
+volatile int fast = 0; //counter of how many times we finished outputing faster than the next synthesis is ready (decode_flag)
+volatile int fast_max = 0; //Counts the worst experienced wait time due to a fast decode_flag delay
 
-float *tmp;
+/* Ping Pong */
 
-//Ping pong buffers
+//Ping pong buffer pointers
+
+int in_index; //current index within the input buffer (*inputptr), e.g. the offset where the next received sample will be written
+float *inputptr; //pointer to the input buffer being filled as data arrived from the ADC
+float *encodeptr; //pointer to the previously filled buffer now being encoded by the LPC
+
+int out_index; //current index within the output buffer (*outputptr), e.g. the offset where the next output sample will be read from
+float *decodeptr; //pointer to a block being decoded from the LPC encoded
+float *outputptr; //point to the output buffer, being read out from as the DAC is ready for new values
+
+float *tmp; //swap variable
+
+//Ping pong buffers allocation
+
 float DATA_IN_1[BLOCKSIZE];
 float DATA_IN_2[BLOCKSIZE];
 float DATA_OUT_1[BLOCKSIZE];
 float DATA_OUT_2[BLOCKSIZE];
 
-//Other buffers
-float a[NUMCOEF]; // coefs
+/* Other program variables */
 
-int synthbuf_index;
-float synthbuf[NUMCOEF]; //lookback buffer
+float a[NUMCOEF]; //LPC coefs
 
+//Small circular buffer used for lookback across block edges during synthesis/decoding
+int synthbuf_index; //circular index
+float synthbuf[NUMCOEF];
+
+//Classification struct for classification synthesis
 classification cl;
 
-float e[BLOCKSIZE]; // ideal error values
-int ebuf_index;
-float ebuf[NUMCOEF]; //lookback buffer
+//ideal excitation values
+float e[BLOCKSIZE];
 
+//lookback buffer for excitaion, similar to synthbuf, used to lookback across block edges during synthesis/decoding
+int ebuf_index; //circular index
+float ebuf[NUMCOEF];
+
+//compressed error values
 short e_fixed_point[BLOCKSIZE];
-
-volatile int slow = 0; //counter of how many times we didn't fnish processing fast enough
-volatile int fast = 0; //counter of how many times we finished outputing faster than the next synthesis is ready
-volatile int fast_max = 0;
+float scale; //Scaling factor to correct for signal power increase due to quantization noise
 
 /**
  * main method
  * contains main run loop
  */
 int main() {
-	float scale = 1.0;
+	//Normal DSK setup
 	DSK6713_init();
 	hCodec = DSK6713_AIC23_openCodec(0,&config);
 	DSK6713_AIC23_setFreq(hCodec, DSK6713_AIC23_FREQ_8KHZ);
@@ -77,39 +95,42 @@ int main() {
 	IRQ_enable(IRQ_EVT_RINT1);
 	IRQ_enable(IRQ_EVT_XINT1);
 	
-	reset(); // init the input buffer to zeros
+	reset(); // init the input buffers/variable to zeros or other defaults
 
 	// the first write is needed to trigger the transmit interrupt
 	while(!DSK6713_AIC23_write(hCodec, 0));
+	//Set L/R initial
 	in_channel_flag = 1;
-	out_channel_flag = 1; //Set L/R initial
+	out_channel_flag = 1; 
 
- 	while(1) {
-		if(encode_flag) {
-			encode_flag = 2;
-			levinson(encodeptr, BLOCKSIZE, a, NUMCOEF);
-			encode_flag = 3;
-			//ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF);
-			encode_flag = 0;
-			//encodeptr only cares that this point is reached before the next buffer swap
+ 	while(1) { //Forever and ever ...
+		if(encode_flag) { //When we receiver a new block
+			encode_flag = 2; //increment flag to indicate state
+			levinson(encodeptr, BLOCKSIZE, a, NUMCOEF); //Find LPC coeff
+			encode_flag = 3; //increment flag to indicate state
+			//IDEAL ERROR and COMPRESSED ERROR
+			//ideal_error(e, encodeptr, BLOCKSIZE, a, NUMCOEF); //find ideal error
+			encode_flag = 0; //encodeptr only cares that this point is reached before the next buffer swap
 
-			//Should we ping pong the a/e array aswell?
-			decode_flag = 1;
-			//synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e);
-			
-			//There is some serious timing issues with the decode buffre we need a diagram ....
+			decode_flag = 1; //Decoding is occuring, do not swap buffers
+			//IDEAL ERROR
+			//synthesize_block_ideal(decodeptr, BLOCKSIZE, a, NUMCOEF, e); //Synthesize from ideal error
+		
+			//COMPRESSED ERROR
+			//compress_fixed_point(e_fixed_point, e, BLOCKSIZE, BITDEPTH); //Compress ideal error as fixed point
+			//scale = get_rms_scale_fixed_point_error(e, e_fixed_point, BLOCKSIZE, BITDEPTH); //scale by gain to mitigate clipping and get get output range
+			//synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, BITDEPTH, scale); //Synthesize from compressed error
 
+			//CLASSIFICATION
+			cl = classify(encodeptr, BLOCKSIZE); //perform classification (return classification struct)
+			synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl); //Synthesize from classification
 
-			//compress_fixed_point(e_fixed_point, e, BLOCKSIZE, BITDEPTH);
-			//scale = get_rms_scale_fixed_point_error(e, e_fixed_point, BLOCKSIZE, BITDEPTH);
-			//synthesize_block_fixed_point(decodeptr, BLOCKSIZE, a, NUMCOEF, e_fixed_point, BITDEPTH, scale);
+			//PURE WHITE
+			//synthesize_block_white(decodeptr, BLOCKSIZE, a, NUMCOEF); //Synthesize using white noise excitation only
 
-			cl = classify(encodeptr, BLOCKSIZE);
-			synthesize_block_classify(decodeptr, BLOCKSIZE, a, NUMCOEF, cl);
-
-			//synthesize_block_white(decodeptr, BLOCKSIZE, a, NUMCOEF);
-			// synthesize_block_tonal(decodeptr, BLOCKSIZE, a, NUMCOEF, 70);
-			decode_flag = 0;
+			//PURE IMPULSE
+			// synthesize_block_tonal(decodeptr, BLOCKSIZE, a, NUMCOEF, 70); //Synthesize using impulse train only
+			decode_flag = 0; //Decoding is complete, safe to swap buffers
 		}
 	};
 	
@@ -122,9 +143,9 @@ int main() {
 }
 
 /**
- * reset function to zero the input buffer
+ * reset function to zero the input buffers and set defaults in variables
  */
- void reset(void) {
+void reset(void) {
  	int i;
 
  	for(i = 0;i < BLOCKSIZE;i++) {
@@ -145,14 +166,15 @@ int main() {
  	inputptr = DATA_IN_1;
  	encodeptr = DATA_IN_2;
 
- 	out_index = 0; //BLOCKSIZE; //TEMPORARY TO BE CHANGED FOR REALTIME
- 	decodeptr = DATA_OUT_1; //DATA_IN_1;
- 	outputptr = DATA_OUT_2; //DATA_IN_2;
+ 	out_index = 0;
+ 	decodeptr = DATA_OUT_1;
+ 	outputptr = DATA_OUT_2;
 
- 	srand(time(NULL));
- }
+ 	srand(time(NULL)); //Used for white noise
 
- //Stand in for the receive interrupt
+ 	scale = 1.0;
+}
+
 void process_sample(short in) {
  	inputptr[in_index] = toFloat(in);
  	in_index++;
@@ -253,101 +275,101 @@ float get_rms_scale_fixed_point_error(float *error, short *error_fixp, int len, 
 	return scale;
 }
 
- void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *error) {
- 	int i, j;
- 	float approx;
+void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *error) {
+	int i, j;
+	float approx;
 
- 	for(i = 0; i < len; i++){
- 		approx = 0;
- 		for(j = 0; j < numcoef; j++){
- 			// use the old data in for the first numcoef values
- 			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
- 		}
+	for(i = 0; i < len; i++){
+		approx = 0;
+		for(j = 0; j < numcoef; j++){
+			// use the old data in for the first numcoef values
+			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
+		}
 
- 		x[i] = error[i] + approx;
- 		
- 		synthbuf[synthbuf_index] = x[i];
- 		synthbuf_index = (synthbuf_index+1)%numcoef;
- 	}
- 	//NB there's a synthesis error with the "last" block, but this will never happen in realtime since there is never a "last" block
- }
+		x[i] = error[i] + approx;
+		
+		synthbuf[synthbuf_index] = x[i];
+		synthbuf_index = (synthbuf_index+1)%numcoef;
+	}
+	//NB there's a synthesis error with the "last" block, but this will never happen in realtime since there is never a "last" block
+}
 
- void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth, float scale) {
- 	int i, j;
- 	float approx;
+void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth, float scale) {
+	int i, j;
+	float approx;
 
- 	for(i = 0; i < len; i++){
- 		approx = 0;
- 		for(j = 0; j < numcoef; j++){
- 			// use the old data in for the first numcoef values
- 			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
- 		}
+	for(i = 0; i < len; i++){
+		approx = 0;
+		for(j = 0; j < numcoef; j++){
+			// use the old data in for the first numcoef values
+			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
+		}
 
- 		x[i] = toFloat((error[i] << (16-bit_depth)))/scale + approx;
- 		
- 		synthbuf[synthbuf_index] = x[i];
- 		synthbuf_index = (synthbuf_index+1)%numcoef;
- 	}
- }
+		x[i] = toFloat((error[i] << (16-bit_depth)))/scale + approx;
+		
+		synthbuf[synthbuf_index] = x[i];
+		synthbuf_index = (synthbuf_index+1)%numcoef;
+	}
+}
 
 
- void synthesize_block_white(float *x, int len, float *coef, int numcoef) {
- 	classification cl;
- 	cl.type = WHITE;
- 	cl.gain = 0.05;
- 	cl.period = -1;
- 	synthesize_block_classify(x, len, coef, numcoef, cl);
- }
+void synthesize_block_white(float *x, int len, float *coef, int numcoef) {
+	classification cl;
+	cl.type = WHITE;
+	cl.gain = 0.05;
+	cl.period = -1;
+	synthesize_block_classify(x, len, coef, numcoef, cl);
+}
 
- void synthesize_block_tonal(float *x, int len, float *coef, int numcoef, int period) {
- 	classification cl;
- 	cl.type = TONAL;
- 	cl.gain = 0.1;
- 	cl.period = period;
- 	synthesize_block_classify(x, len, coef, numcoef, cl);
- }
+void synthesize_block_tonal(float *x, int len, float *coef, int numcoef, int period) {
+	classification cl;
+	cl.type = TONAL;
+	cl.gain = 0.1;
+	cl.period = period;
+	synthesize_block_classify(x, len, coef, numcoef, cl);
+}
 
- void synthesize_block_classify(float *x, int len, float *coef, int numcoef, classification cl) {
- 	int i, j;
- 	float approx, error;
+void synthesize_block_classify(float *x, int len, float *coef, int numcoef, classification cl) {
+	int i, j;
+	float approx, error;
 
- 	for(i = 0; i < len; i++){
- 		approx = 0;
- 		for(j = 0; j < numcoef; j++){
- 			// use the old data in for the first numcoef values
- 			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
- 		}
+	for(i = 0; i < len; i++){
+		approx = 0;
+		for(j = 0; j < numcoef; j++){
+			// use the old data in for the first numcoef values
+			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
+		}
 
- 		if(cl.type == WHITE) {
- 			error = randomFloat()*cl.gain*GAINCOMP;
- 		} else if(cl.type == TONAL) {
- 			if(i%cl.period == 0) {
- 				error = cl.gain*GAINCOMP;
- 			} else {
- 				error = 0;
- 			}
- 		} else {
- 			error = 0;
- 		}
+		if(cl.type == WHITE) {
+			error = randomFloat()*cl.gain*GAINCOMP;
+		} else if(cl.type == TONAL) {
+			if(i%cl.period == 0) {
+				error = cl.gain*GAINCOMP;
+			} else {
+				error = 0;
+			}
+		} else {
+			error = 0;
+		}
 
- 		x[i] = error + approx;
- 		
- 		synthbuf[synthbuf_index] = x[i];
- 		synthbuf_index = (synthbuf_index+1)%numcoef;
- 	}
- }
+		x[i] = error + approx;
+		
+		synthbuf[synthbuf_index] = x[i];
+		synthbuf_index = (synthbuf_index+1)%numcoef;
+	}
+}
 
- float randomFloat(void) {
-       return (float)rand()/(float)RAND_MAX;
- }
+float randomFloat(void) {
+      return (float)rand()/(float)RAND_MAX;
+}
 
- short toShort(float v) {
- 	return (short)(v*32768);
- }
+short toShort(float v) {
+	return (short)(v*32768);
+}
 
- float toFloat(short v) {
- 	return ((float)v)/32768.0;
- }
+float toFloat(short v) {
+	return ((float)v)/32768.0;
+}
 
 /** interrupts **/
 
@@ -358,13 +380,13 @@ void receive_interrupt(void) {
 	if(in_channel_flag){
 		DSK6713_AIC23_read(hCodec, &in_tmp);
 
-		process_sample((Int16)in_tmp);
+		process_sample((Int16)in_tmp); //Process new input sample (adds it to buffer)
 
 		in_channel_flag = 0;
 	} else {
 		DSK6713_AIC23_read(hCodec, &in_tmp);
 
-		//Ignore right channel
+		//Ignore channel, assuming we only want mono
 
 		in_channel_flag = 1;
 	}
@@ -375,12 +397,12 @@ void receive_interrupt(void) {
  */
 void transmit_interrupt(void) {
 	if(out_channel_flag){
-		out_tmp = generate_sample() & 0xFFFF;
+		out_tmp = generate_sample() & 0xFFFF; //Get new output sample (get from output buffer)
 		DSK6713_AIC23_write(hCodec, out_tmp);
 
 		out_channel_flag = 0;
 	} else {
-		DSK6713_AIC23_write(hCodec, out_tmp);
+		DSK6713_AIC23_write(hCodec, out_tmp); //Playback same as other channel
 
 		out_channel_flag = 1;
 	}
