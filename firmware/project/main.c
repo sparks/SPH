@@ -175,40 +175,49 @@ void reset(void) {
  	scale = 1.0;
 }
 
+/**
+ * Process sample from interrupt. Buffers the sample in ping pong buffer.
+ *
+ */
 void process_sample(short in) {
- 	inputptr[in_index] = toFloat(in);
+ 	inputptr[in_index] = toFloat(in); //Convert and store
  	in_index++;
 
- 	if(in_index > BLOCKSIZE) {
- 		in_index = 0;
+ 	if(in_index > BLOCKSIZE) { //If we reached the end of the buffer
+ 		in_index = 0; //Reset index 
 
+ 		//Swap buffers 
  		tmp = encodeptr;
  		encodeptr = inputptr;
  		inputptr = tmp;
 
  		if(encode_flag > 0) {
  			//bad we didn't process before the next full buf
-			slow++;
+			slow++; //note the error
  		}
- 		encode_flag = 1;
+ 		encode_flag = 1; //Raise the flag saying we are ready to encode a block
  	}
  }
 
+/**
+ * Generate a new sample for output. Simply fetch the sample from the active output buffer.
+ *
+ */
 short generate_sample(void) {
  	short output;
 
- 	output = toShort(outputptr[out_index]);
+ 	output = toShort(outputptr[out_index]); //Convert for output
  	out_index++;
 
- 	if(out_index >= BLOCKSIZE) { //MOVE DOWN FOR REALTIME
- 		if(decode_flag > 0) { //1) {
- 			//Inside a synthesis block, do not swap
- 			fast++; 
- 			out_index--;
+ 	if(out_index >= BLOCKSIZE) { //If we reached the end of the buffer
+ 		if(decode_flag > 0) { 
+ 			//Inside a synthesis block, do not swap. Unsafe
+ 			out_index--; //Simply hold at the last output value
+ 			fast++; //note the error
 
-			if(fast > fast_max)
-				fast_max = fast; 
+			if(fast > fast_max) fast_max = fast; //Note the worst case "wait" time when we wait for synthesis to finish
  		} else {
+ 			//Otherwise reset the index and swap the pointers
 	 		out_index = 0;
 
 	 		tmp = decodeptr;
@@ -218,16 +227,21 @@ short generate_sample(void) {
 	 	}
  	}
 
- 	return output;
+ 	return output; //Return the output value
  }
 
+/**
+ * Compute ideal error.
+ *
+ */
  void ideal_error(float *error, float *x, int len, float *coef, int numcoef) {
  	int i, j;
  	float approx;
 
+ 	//Implementation of the LPC equations as seen in handout
  	for(i = 0; i < len; i++){
  		approx = 0;
- 		for(j = 0; j < numcoef; j++){
+ 		for(j = 0; j < numcoef; j++) {
  			// use the old data in for the first numcoef values
  			approx += a[j]*ebuf[(ebuf_index+numcoef-j-1)%numcoef];
  		}
@@ -239,6 +253,7 @@ short generate_sample(void) {
  	}
  }
 
+//Simple truncation fixed point approach
  void compress_fixed_point(short *comp, float *x, int len, int bit_depth) {
  	int i;
 
@@ -247,6 +262,10 @@ short generate_sample(void) {
  	}
  }
 
+/**
+ * Method name is a LIE. We were using rms initially but sqrt is too slow. We are simply using average absolute gain as an approximation.
+ *
+ */
 float get_rms_scale_fixed_point_error(float *error, short *error_fixp, int len, int bit_depth) {
 	float rms_original = 0;
 	float rms_fixp = 0;
@@ -256,8 +275,9 @@ float get_rms_scale_fixed_point_error(float *error, short *error_fixp, int len, 
 	//not actually doing the square root because it takes too long
 	for(i = 0; i < len; i++) {
 		rms_original += fabs(error[i]);
-		rms_fixp += fabs( toFloat(error_fixp[i] << (16 - bit_depth)));
+		rms_fixp += fabs(toFloat(error_fixp[i] << (16 - bit_depth)));
 	}
+
 	/*
 	for(i = 0; i < len; i++) {
 		rms_original += pow(error[i], 2);
@@ -268,17 +288,17 @@ float get_rms_scale_fixed_point_error(float *error, short *error_fixp, int len, 
 	rms_fixp = sqrt(fabs(rms_fixp));
 	*/
 
-	if(rms_original > 0.0)
-		scale = rms_fixp/rms_original;
-	
+	if(rms_original > 0.0) scale = rms_fixp/rms_original; //Scaling factor
 
 	return scale;
 }
 
+//Ideal error synthesis
 void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *error) {
 	int i, j;
 	float approx;
 
+	//Implementation of ideal synthesis as seen in handout
 	for(i = 0; i < len; i++){
 		approx = 0;
 		for(j = 0; j < numcoef; j++){
@@ -294,10 +314,12 @@ void synthesize_block_ideal(float *x, int len, float *coef, int numcoef, float *
 	//NB there's a synthesis error with the "last" block, but this will never happen in realtime since there is never a "last" block
 }
 
+//Fixed point error synthesis
 void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, short *error, int bit_depth, float scale) {
 	int i, j;
 	float approx;
 
+	//Almost the same as ideal synthesis with added conversion from fixed point back to float
 	for(i = 0; i < len; i++){
 		approx = 0;
 		for(j = 0; j < numcoef; j++){
@@ -312,48 +334,56 @@ void synthesize_block_fixed_point(float *x, int len, float *coef, int numcoef, s
 	}
 }
 
-
+//Pure white noise excitation
 void synthesize_block_white(float *x, int len, float *coef, int numcoef) {
+	//Build a classification struct for white noise
+	//NB use very low gain since white noise has large signal power. Otherwise clipping will occur. 
 	classification cl;
 	cl.type = WHITE;
 	cl.gain = 0.05;
 	cl.period = -1;
-	synthesize_block_classify(x, len, coef, numcoef, cl);
+	synthesize_block_classify(x, len, coef, numcoef, cl); //Use normal classification synthesis with our special cl value
 }
 
+//Pure impulse excitation
 void synthesize_block_tonal(float *x, int len, float *coef, int numcoef, int period) {
+	//Build a classification struct for impulse noise.
+	//NB again use smallish gain to avoid clipping
 	classification cl;
 	cl.type = TONAL;
 	cl.gain = 0.1;
 	cl.period = period;
-	synthesize_block_classify(x, len, coef, numcoef, cl);
+	synthesize_block_classify(x, len, coef, numcoef, cl); //Use normal classification synthbuf with our special cl value
 }
 
+//Synthesis based on block classification
 void synthesize_block_classify(float *x, int len, float *coef, int numcoef, classification cl) {
 	int i, j;
 	float approx, error;
 
 	for(i = 0; i < len; i++){
-		approx = 0;
+		approx = 0; //Linear combination of past values
 		for(j = 0; j < numcoef; j++){
 			// use the old data in for the first numcoef values
 			approx += a[j]*synthbuf[(synthbuf_index+numcoef-j-1)%numcoef];
 		}
 
+		//generate excitation term based on classification
 		if(cl.type == WHITE) {
-			error = randomFloat()*cl.gain*GAINCOMP;
+			error = randomFloat()*cl.gain*GAINCOMP; //white noise == random
 		} else if(cl.type == TONAL) {
 			if(i%cl.period == 0) {
-				error = cl.gain*GAINCOMP;
+				error = cl.gain*GAINCOMP; //Impulse once per period
 			} else {
-				error = 0;
+				error = 0; //Zero otherwise
 			}
 		} else {
 			error = 0;
 		}
 
-		x[i] = error + approx;
+		x[i] = error + approx; //excitation plus linear combination of past values
 		
+		//circular buffering to allow lookback across block edges
 		synthbuf[synthbuf_index] = x[i];
 		synthbuf_index = (synthbuf_index+1)%numcoef;
 	}
